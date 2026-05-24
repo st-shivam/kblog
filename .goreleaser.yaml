@@ -33,5 +33,4 @@ changelog:
   disable: true
 
 release:
-  header:
-    contents: "{{ .Env.RELEASE_NOTES }}"
+  header: "{{ .Env.RELEASE_NOTES }}"
