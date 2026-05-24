@@ -1,0 +1,21 @@
+# Build output
+bin/
+kblog
+
+# Jekyll build output (docs site)
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
+docs/vendor/
+
+# Claude Code
+.claude/
+
+# IDE and OS files
+.DS_Store
+.vscode/
+.idea/
+
+# Local testing
+*.log
+*.tmp

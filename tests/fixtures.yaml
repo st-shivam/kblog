@@ -1,0 +1,185 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kblog-test
+
+---
+# Deployment 1: noisy-logger — high-volume plain-text logs at varied severity levels
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noisy-logger
+  namespace: kblog-test
+  labels:
+    app: noisy-logger
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: noisy-logger
+  template:
+    metadata:
+      labels:
+        app: noisy-logger
+    spec:
+      containers:
+      - name: logger
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          i=0
+          while true; do
+            i=$((i+1))
+            case $((i % 5)) in
+              0) echo "ERROR something went wrong at iteration $i: connection refused";;
+              1) echo "WARN high memory usage detected: 85% at iteration $i";;
+              2) echo "INFO processing request $i successfully";;
+              3) echo "DEBUG internal counter value=$i threshold=100";;
+              4) echo "INFO health check passed iteration=$i status=ok";;
+            esac
+            sleep 0.4
+          done
+        resources:
+          requests: {cpu: 10m, memory: 16Mi}
+          limits:  {cpu: 50m, memory: 32Mi}
+
+---
+# Deployment 2: json-logger — structured JSON logs (tests JSON inspector + msg extraction)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: json-logger
+  namespace: kblog-test
+  labels:
+    app: json-logger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: json-logger
+  template:
+    metadata:
+      labels:
+        app: json-logger
+    spec:
+      containers:
+      - name: app
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          i=0
+          while true; do
+            i=$((i+1))
+            ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            case $((i % 4)) in
+              0) echo "{\"level\":\"error\",\"ts\":\"$ts\",\"msg\":\"database query failed\",\"latency_ms\":1520,\"error\":\"connection timeout\",\"query\":\"SELECT * FROM users\"}";;
+              1) echo "{\"level\":\"warn\",\"ts\":\"$ts\",\"msg\":\"cache miss rate high\",\"rate\":0.87,\"threshold\":0.5}";;
+              2) echo "{\"level\":\"info\",\"ts\":\"$ts\",\"msg\":\"request served\",\"method\":\"GET\",\"path\":\"/api/v1/orders\",\"status\":200,\"duration_ms\":$((RANDOM % 200))}";;
+              3) echo "{\"level\":\"debug\",\"ts\":\"$ts\",\"msg\":\"goroutine pool stats\",\"active\":$i,\"idle\":$((10-i%10)),\"queue_depth\":$((RANDOM % 50))}";;
+            esac
+            sleep 0.8
+          done
+        resources:
+          requests: {cpu: 10m, memory: 16Mi}
+          limits:  {cpu: 50m, memory: 32Mi}
+
+---
+# Deployment 3: crashloop — pod that crashes every 10s (tests K8s event streaming: BackOff, OOMKilled events)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crashloop
+  namespace: kblog-test
+  labels:
+    app: crashloop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crashloop
+  template:
+    metadata:
+      labels:
+        app: crashloop
+    spec:
+      containers:
+      - name: crasher
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "ERROR Starting up... this will crash shortly"
+          echo "WARN Memory pressure building up"
+          sleep 5
+          echo "ERROR Fatal: out of memory — exiting"
+          exit 1
+        resources:
+          requests: {cpu: 10m, memory: 16Mi}
+          limits:  {cpu: 50m, memory: 32Mi}
+
+---
+# Deployment 4: multi-container — tests sidebar container filter (two containers per pod)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multi-container
+  namespace: kblog-test
+  labels:
+    app: multi-container
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multi-container
+  template:
+    metadata:
+      labels:
+        app: multi-container
+    spec:
+      initContainers:
+      - name: init-setup
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "INFO [init] running database migrations"
+          sleep 2
+          echo "INFO [init] migrations complete"
+      containers:
+      - name: api-server
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          i=0
+          while true; do
+            i=$((i+1))
+            echo "INFO [api-server] handling request $i"
+            sleep 1
+          done
+        resources:
+          requests: {cpu: 10m, memory: 16Mi}
+          limits:  {cpu: 50m, memory: 32Mi}
+      - name: sidecar-proxy
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          i=0
+          while true; do
+            i=$((i+1))
+            echo "DEBUG [sidecar-proxy] forwarding packet seq=$i"
+            sleep 2
+          done
+        resources:
+          requests: {cpu: 10m, memory: 16Mi}
+          limits:  {cpu: 50m, memory: 32Mi}

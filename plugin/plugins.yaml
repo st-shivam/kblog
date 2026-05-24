@@ -1,0 +1,41 @@
+# K9s Plugin Integration Configuration for kblog
+# Place these lines inside your K9s plugins configuration file.
+# Path: ~/.config/k9s/plugins.yaml (or ~/.k9s/plugins.yaml depending on your OS/installation)
+#
+# Once added, restart K9s. You will see `<Shift-L> kblog` listed in your hotkey menu
+# when highlighting Pods or Deployments!
+
+plugins:
+  # Trigger kblog on a specific highlighted Pod
+  kblog-pod:
+    shortCut: Shift-L
+    confirm: false
+    description: "kblog Timeline"
+    scopes:
+      - pods
+    command: kblog
+    background: false
+    args:
+      - --context
+      - $CONTEXT
+      - --namespace
+      - $NAMESPACE
+      - --pod
+      - $NAME
+
+  # Trigger kblog on a highlighted Deployment (merging logs from all replicas)
+  kblog-deployment:
+    shortCut: Shift-L
+    confirm: false
+    description: "kblog Timeline"
+    scopes:
+      - deployments
+    command: kblog
+    background: false
+    args:
+      - --context
+      - $CONTEXT
+      - --namespace
+      - $NAMESPACE
+      - --deployment
+      - $NAME
