@@ -4,13 +4,11 @@ nav_order: 2
 ---
 
 # Installation
-{: .no_toc }
 
-## Table of contents
-{: .no_toc .text-delta }
-
-1. TOC
-{:toc}
+- [Requirements](#requirements)
+- [Option 1 — Install script (recommended)](#option-1--install-script-recommended)
+- [Option 2 — Release tarball](#option-2--release-tarball)
+- [Option 3 — Build from source](#option-3--build-from-source)
 
 ---
 
@@ -22,11 +20,7 @@ nav_order: 2
 
 ---
 
-## Option 1 — Install script
-{: .d-inline-block }
-
-Recommended
-{: .label .label-green }
+## Option 1 — Install script (recommended)
 
 Downloads the right binary for your platform and installs the k9s plugin automatically.
 
@@ -41,7 +35,7 @@ INSTALL_DIR=$HOME/.local/bin \
   curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
 ```
 
-If `~/.local/bin` is not on your PATH:
+If `~/.local/bin` is not on your PATH yet:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
@@ -61,7 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | V
 Download the archive for your platform from the [Releases page](https://github.com/st-shivam/kblog/releases):
 
 | Platform | Archive |
-|:---|:---|
+|---|---|
 | Linux x86-64 | `kblog_<version>_linux_amd64.tar.gz` |
 | Linux ARM64 | `kblog_<version>_linux_arm64.tar.gz` |
 
@@ -88,7 +82,7 @@ Requires [Go 1.26+](https://go.dev/doc/install).
 git clone https://github.com/st-shivam/kblog.git
 cd kblog
 
-# No sudo — install to local directory
+# No sudo — install to a local directory
 make install INSTALL_PATH=$HOME/.local/bin
 
 # Or system-wide

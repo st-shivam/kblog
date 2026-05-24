@@ -4,13 +4,14 @@ nav_order: 5
 ---
 
 # Architecture
-{: .no_toc }
 
-## Table of contents
-{: .no_toc .text-delta }
-
-1. TOC
-{:toc}
+- [Overview](#overview)
+- [Package structure](#package-structure)
+- [Channel pipeline](#channel-pipeline)
+- [Coordinated shutdown](#coordinated-shutdown)
+- [Two-phase filter pipeline](#two-phase-filter-pipeline)
+- [ANSI-aware modal overlay](#ansi-aware-modal-overlay)
+- [Theme system](#theme-system)
 
 ---
 
@@ -23,16 +24,16 @@ nav_order: 5
 |                 TUI Rendering Layer                    |
 |       (Bubbletea Elm loop + Lipgloss styling)          |
 +--------------------------------------------------------+
-                           ▲
-                           │  LogLine channel stream
-                           ▼
+                           |
+                    LogLine channel stream
+                           |
 +--------------------------------------------------------+
 |              Concurrency Coordination                  |
 |       (WaitGroup + context-aware channel writes)       |
 +--------------------------------------------------------+
-                           ▲
-                           │  Background subscriptions
-                           ▼
+                           |
+                    Background subscriptions
+                           |
 +--------------------------------------------------------+
 |                Kubernetes I/O Layer                    |
 |       (client-go log streaming + API event watch)      |
@@ -64,11 +65,11 @@ plugin/plugins.yaml      k9s plugin definition (Shift-L → kblog)
 
 ```
 LogStreamer → logChan → pipe goroutine → sharedLogChan ← EventWatcher
-                                                ↓
-                                          TUI waitForLogs()
+                                                |
+                                         TUI waitForLogs()
 ```
 
-`waitForLogs` returns a `tea.Cmd` that reads one `LogLine` from `sharedLogChan`, delivering it into the Bubbletea Elm loop. This keeps K8s I/O off the render goroutine.
+`waitForLogs` returns a `tea.Cmd` that reads one `LogLine` from `sharedLogChan`, delivering it to the Bubbletea Elm loop. This keeps K8s I/O off the render goroutine.
 
 ---
 
@@ -103,7 +104,7 @@ go func() {          // final closer
 }()
 ```
 
-All channel writes across the codebase use a `select`/`ctx.Done()` guard so that a stalled TUI cannot cause shutdown to deadlock.
+All channel writes across the codebase use a `select`/`ctx.Done()` guard so a stalled TUI cannot cause shutdown to deadlock.
 
 ---
 
@@ -114,17 +115,17 @@ The log buffer maintains two slices:
 - **`AllLines`** — full immutable buffer, capped at 50k lines.
 - **`FilteredLines`** — active view after applying level, search, and container filters.
 
-**Fast path — `AddLineWithFilter`** (called on every incoming log line): evaluates the new line against current filters in O(1) and appends directly to `FilteredLines` if it matches. No buffer scan.
+**Fast path — `AddLineWithFilter`** runs on every incoming log line. It evaluates the new line against current filters in O(1) and appends directly to `FilteredLines` if it matches. No buffer scan.
 
-**Slow path — `UpdateFilters`** (called only when the user changes a filter): re-scans all 50k lines in `AllLines` and rebuilds `FilteredLines`. Triggered by search query changes, level filter key presses, or container sidebar toggles.
+**Slow path — `UpdateFilters`** runs only when the user changes a filter (search query, level key, container toggle). It re-scans all of `AllLines` and rebuilds `FilteredLines`.
 
 ---
 
 ## ANSI-aware modal overlay
 
-The JSON inspector modal is rendered over log lines that contain ANSI color escape codes. Standard byte-index slicing would break mid-escape-sequence and corrupt the terminal output.
+The JSON inspector modal is rendered over log lines that contain ANSI color codes. Standard byte-index slicing would break mid-escape-sequence and corrupt the terminal.
 
-`kblog` solves this with a character-cell engine:
+`kblog` uses a character-cell engine:
 
 ```go
 type ansiCell struct {
@@ -133,14 +134,14 @@ type ansiCell struct {
 }
 ```
 
-1. **`parseAnsiString`** — converts a styled string into a slice of `ansiCell`. Each cell carries the full ANSI prefix active at that character position. Style state propagates forward until a reset sequence (`\x1b[0m`) is encountered.
-2. **Overlay** — splicing is performed on the cell slice, ensuring escape sequences are never split.
+1. **`parseAnsiString`** — converts a styled string into a slice of `ansiCell`. Each cell carries the full ANSI prefix active at that position. Style state propagates forward until a reset sequence (`\x1b[0m`) is encountered.
+2. **Overlay** — splicing is performed on the cell slice, so escape sequences are never split.
 3. **`cellsToString`** — compiles the cell slice back into a terminal string with a trailing `\x1b[0m` reset.
 
 ---
 
 ## Theme system
 
-All color and style constants live in `tui/styles.go` as package-level `lipgloss.Style` variables. `InitStyles(theme)` recompiles every variable for the selected theme. Render code references these globals directly — no inline color literals in render paths.
+All color and style constants live in `tui/styles.go` as package-level `lipgloss.Style` variables. `InitStyles(theme)` recompiles every variable for the selected theme. Render code references these globals — no inline color literals in render paths.
 
-This makes theme cycling instantaneous: one call to `InitStyles` + a full re-render, no state to thread through the model.
+Theme cycling is instantaneous: one `InitStyles` call and a full re-render, with no state to thread through the model.

@@ -4,17 +4,12 @@ nav_order: 4
 ---
 
 # k9s Integration
-{: .no_toc }
 
-## Table of contents
-{: .no_toc .text-delta }
-
-1. TOC
-{:toc}
-
----
-
-`kblog` ships as a drop-in replacement for the k9s log viewer. Once installed, press `Shift-L` on any Pod or Deployment to open `kblog` in place of the default log screen.
+- [How k9s plugins work](#how-k9s-plugins-work)
+- [Automatic setup](#automatic-setup)
+- [Manual setup](#manual-setup)
+- [Plugin variables](#plugin-variables)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -31,7 +26,7 @@ When you highlight a resource in k9s and press a configured hotkey:
 
 ## Automatic setup
 
-The install script and `make install` install the plugin automatically:
+The install script and `make install` handle the plugin automatically:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
@@ -39,13 +34,13 @@ curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | b
 make install
 ```
 
-Restart k9s after installation. The `Shift-L` binding will appear in the hotkey bar.
+Restart k9s after installation. The `Shift-L` binding will appear in the hotkey bar on Pod and Deployment views.
 
 ---
 
 ## Manual setup
 
-If you prefer to configure the plugin manually, add the following to `~/.config/k9s/plugins.yaml` (create the file if it doesn't exist):
+Add the following to `~/.config/k9s/plugins.yaml` (create it if it doesn't exist):
 
 ```yaml
 plugins:
@@ -88,7 +83,7 @@ Restart k9s to load the configuration.
 
 ## Plugin variables
 
-k9s injects these variables automatically when invoking the plugin:
+k9s injects these automatically when invoking the plugin:
 
 | Variable | Description |
 |---|---|
@@ -102,7 +97,7 @@ k9s injects these variables automatically when invoking the plugin:
 
 **`Shift-L` does nothing or shows "command not found"**
 
-k9s cannot find the `kblog` binary in its PATH. Ensure `kblog` is installed in a directory that's on your PATH (e.g. `/usr/local/bin`), or specify the absolute path in `plugins.yaml`:
+k9s cannot find the `kblog` binary in its PATH. Install it to a directory that's on your PATH, or use the absolute path in `plugins.yaml`:
 
 ```yaml
 command: /usr/local/bin/kblog
@@ -110,22 +105,22 @@ command: /usr/local/bin/kblog
 
 **Logs or events fail to load**
 
-Your kubeconfig context may lack permissions to read pod logs or cluster events. Verify:
+Your kubeconfig context may lack permissions. Verify:
 
 ```bash
 kubectl auth can-i get pods --namespace <ns>
 kubectl auth can-i get events --namespace <ns>
 ```
 
-**Colors look wrong or modal is distorted**
+**Colors look wrong or the modal is distorted**
 
-Ensure your terminal supports 24-bit truecolor. Set `COLORTERM=truecolor` in your shell profile if needed. Tested terminals: iTerm2, Alacritty, WezTerm, GNOME Terminal, Kitty.
+Ensure your terminal supports 24-bit truecolor. Set `COLORTERM=truecolor` in your shell profile. Tested terminals: iTerm2, Alacritty, WezTerm, GNOME Terminal, Kitty.
 
 ---
 
 ## Plugin config path by OS
 
-| OS | Default path |
+| OS | Path |
 |---|---|
 | macOS / Linux | `~/.config/k9s/plugins.yaml` |
 | macOS (Homebrew k9s) | `~/Library/Application Support/k9s/plugins.yaml` |

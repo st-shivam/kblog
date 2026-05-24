@@ -1,17 +1,13 @@
 ---
 title: Home
-layout: home
 nav_order: 1
 ---
 
 # kblog
-{: .fs-9 }
 
 A Kubernetes log-tailing TUI — stream pod and deployment logs with live K8s event injection, JSON inspection, severity filtering, and themes. One binary, no runtime dependencies.
-{: .fs-5 .fw-300 }
 
-[Install now](installation){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[View on GitHub](https://github.com/st-shivam/kblog){: .btn .btn-purple .fs-5 .mb-4 .mb-md-0 }
+[Install now](installation.md) · [View on GitHub](https://github.com/st-shivam/kblog)
 
 ---
 
@@ -37,26 +33,19 @@ A Kubernetes log-tailing TUI — stream pod and deployment logs with live K8s ev
 
 ## What makes it different
 
-{: .highlight }
 Most Kubernetes log tools dump raw text into a terminal. `kblog` is a full interactive TUI — you stay oriented across containers, clusters, and chaos.
 
-### Concurrent multi-container streaming
-Stream every container in a pod — or every replica of a deployment — in one unified view. Each source gets a stable color-coded prefix so you always know where a line came from.
+**Concurrent multi-container streaming** — stream every container in a pod or every replica of a deployment in one unified view. Each source gets a stable color-coded prefix so you always know where a line came from.
 
-### Live K8s event injection
-`OOMKilled`, `CrashLoopBackOff`, liveness probe failures, scheduling events — injected inline as they happen. No more switching to a separate `kubectl get events` tab while something is on fire.
+**Live K8s event injection** — `OOMKilled`, `CrashLoopBackOff`, liveness probe failures, scheduling events injected inline as they happen. No more switching to a separate `kubectl get events` tab while something is on fire.
 
-### Interactive JSON inspector
-Press `Enter` on any structured log line to open a syntax-highlighted key-value overlay. Works on mixed streams regardless of language or logging framework. Press `Esc` to dismiss.
+**Interactive JSON inspector** — press `Enter` on any structured log line to open a syntax-highlighted key-value overlay. Works on mixed streams regardless of language or logging framework.
 
-### Live search and field filtering
-Press `/` to filter by plain text, regex, or `key=value` pairs (e.g. `level=error service=auth`). Non-matching lines dim instantly — you never leave the stream.
+**Live search and field filtering** — press `/` to filter by plain text, regex, or `key=value` pairs (e.g. `level=error service=auth`). Non-matching lines dim instantly.
 
-### Five color themes
-Midnight (default), Dracula, Catppuccin Macchiato, Nord, Monokai. Cycle with `t`.
+**Five color themes** — Midnight (default), Dracula, Catppuccin Macchiato, Nord, Monokai. Cycle with `t`.
 
-### Clipboard copy
-`c` on a single line. `v` to start a visual selection, then `c` to copy the block. Works on macOS and Linux.
+**Clipboard copy** — `c` on a single line. `v` for a visual selection, then `c` to copy the block.
 
 ---
 
@@ -78,13 +67,11 @@ Or tail a full deployment across all replicas:
 kblog --deployment <name> --namespace <namespace>
 ```
 
-{: .note }
-The install script places the binary in `/usr/local/bin` and sets up the k9s plugin automatically. See [Installation](installation) for custom paths and version pinning.
+> The install script places the binary in `/usr/local/bin` and sets up the k9s plugin automatically.
+> See [Installation](installation.md) for custom paths and version pinning.
 
 ---
 
 ## k9s integration
 
-Press `Shift-L` on any Pod or Deployment in k9s to open `kblog` in place of the built-in log view. Press `q` to return to k9s.
-
-The install script wires this up automatically. See [k9s Integration](k9s-integration) for manual setup.
+Press `Shift-L` on any Pod or Deployment in k9s to open `kblog` in place of the built-in log view. Press `q` to return to k9s. The install script wires this up automatically.
