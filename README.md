@@ -10,7 +10,7 @@
 
 Works as both a **standalone CLI tool** and a **drop-in k9s plugin** (press `Shift-L` on any pod or deployment). A single Go binary, no runtime dependencies.
 
-**[Full documentation →](https://st-shivam.github.io/kblog)**
+**[Full documentation →](docs/)**
 
 ---
 
@@ -39,7 +39,7 @@ kblog --pod <pod-name> --namespace <namespace>
 kblog --deployment <deployment-name> --namespace <namespace>
 ```
 
-See [Installation](https://st-shivam.github.io/kblog/installation) for all options including manual installs, version pinning, and build from source.
+See [Installation](https://github.com/st-shivam/kblog/blob/main/docs/installation.md) for all options including manual installs, version pinning, and build from source.
 
 ---
 
@@ -90,7 +90,7 @@ See [Installation](https://st-shivam.github.io/kblog/installation) for all optio
 
 `kblog` integrates as a k9s plugin. The install script sets it up automatically. Press `Shift-L` on any pod or deployment to open kblog in place of the default log view.
 
-See [k9s Integration](https://st-shivam.github.io/kblog/k9s-integration) for manual setup.
+See [k9s Integration](https://github.com/st-shivam/kblog/blob/main/docs/k9s-integration.md) for manual setup.
 
 ---
 
