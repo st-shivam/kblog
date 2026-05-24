@@ -16,48 +16,52 @@ nav_order: 2
 
 ## Requirements
 
-- Linux or macOS (x86-64 or ARM64)
-- A working kubeconfig (`~/.kube/config` or `KUBECONFIG` env var)
-- Go 1.26+ only required for building from source
+- **OS:** Linux x86-64 or ARM64
+- **Cluster access:** A valid kubeconfig (`~/.kube/config` or `$KUBECONFIG`)
+- **Go 1.26+** only needed if building from source
 
 ---
 
-## Option 1 — Install script (recommended)
+## Option 1 — Install script
+{: .d-inline-block }
 
-Downloads the correct pre-built binary for your platform and installs the k9s plugin automatically.
+Recommended
+{: .label .label-green }
+
+Downloads the right binary for your platform and installs the k9s plugin automatically.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/st-tripathi/kblog/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
 ```
 
-**Custom install directory** (no `sudo` required):
+**Custom install directory** (no `sudo`):
 
 ```bash
 INSTALL_DIR=$HOME/.local/bin \
-  curl -fsSL https://raw.githubusercontent.com/st-tripathi/kblog/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
 ```
 
-Add `~/.local/bin` to your PATH if not already there:
+If `~/.local/bin` is not on your PATH:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-# zsh: replace ~/.bashrc with ~/.zshrc
+# zsh users: use ~/.zshrc instead
 ```
 
 **Pin to a specific version:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/st-tripathi/kblog/main/install.sh | VERSION=v0.1.0 bash
+curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | VERSION=v0.1.0 bash
 ```
 
 ---
 
 ## Option 2 — Release tarball
 
-Download the archive for your platform from the [Releases page](https://github.com/st-tripathi/kblog/releases):
+Download the archive for your platform from the [Releases page](https://github.com/st-shivam/kblog/releases):
 
 | Platform | Archive |
-|---|---|
+|:---|:---|
 | Linux x86-64 | `kblog_<version>_linux_amd64.tar.gz` |
 | Linux ARM64 | `kblog_<version>_linux_arm64.tar.gz` |
 
@@ -66,7 +70,6 @@ Extract and install:
 ```bash
 tar -xzf kblog_<version>_linux_amd64.tar.gz
 sudo mv kblog /usr/local/bin/
-kblog --help
 ```
 
 Install the k9s plugin bundled in the archive:
@@ -82,24 +85,24 @@ cat plugin/plugins.yaml >> ~/.config/k9s/plugins.yaml
 Requires [Go 1.26+](https://go.dev/doc/install).
 
 ```bash
-git clone https://github.com/st-tripathi/kblog.git
+git clone https://github.com/st-shivam/kblog.git
 cd kblog
 
-# Install to /usr/local/bin (requires sudo)
-sudo make install
-
-# Or install to a local directory (no sudo)
+# No sudo — install to local directory
 make install INSTALL_PATH=$HOME/.local/bin
+
+# Or system-wide
+sudo make install
 ```
 
 `make install` builds the binary, copies it to the target directory, and installs the k9s plugin in one step.
 
 ---
 
-## Verify installation
+## Verify
 
 ```bash
 kblog --help
 ```
 
-You should see the full usage output with all available flags.
+You should see the full usage output. If the command isn't found, ensure the install directory is on your `PATH`.

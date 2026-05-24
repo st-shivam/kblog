@@ -37,7 +37,7 @@ Linux x86-64 and ARM64. macOS builds are not included in this release.
 ### Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/st-tripathi/kblog/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
 ```
 
-Or grab a tarball from the assets below. See the [full installation guide](https://st-tripathi.github.io/kblog/installation) for all options.
+Or grab a tarball from the assets below. See the [full installation guide](https://st-shivam.github.io/kblog/installation) for all options.

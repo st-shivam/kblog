@@ -4,13 +4,13 @@
 [![Go Version](https://img.shields.io/badge/Go-1.26%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![Kubernetes API](https://img.shields.io/badge/K8s%20API-v1.28%2B-326CE5.svg?style=flat&logo=kubernetes)](https://kubernetes.io)
 [![Platform support](https://img.shields.io/badge/Platform-Linux-lightgrey.svg)](https://golang.org)
-[![CI](https://github.com/st-tripathi/kblog/actions/workflows/ci.yml/badge.svg)](https://github.com/st-tripathi/kblog/actions/workflows/ci.yml)
+[![CI](https://github.com/st-shivam/kblog/actions/workflows/ci.yml/badge.svg)](https://github.com/st-shivam/kblog/actions/workflows/ci.yml)
 
 **`kblog`** is a Kubernetes log-tailing TUI that streams pod and deployment logs with real-time K8s event injection, interactive JSON inspection, severity filtering, and themes.
 
 Works as both a **standalone CLI tool** and a **drop-in k9s plugin** (press `Shift-L` on any pod or deployment). A single Go binary, no runtime dependencies.
 
-**[Full documentation →](https://st-tripathi.github.io/kblog)**
+**[Full documentation →](https://st-shivam.github.io/kblog)**
 
 ---
 
@@ -29,7 +29,7 @@ Works as both a **standalone CLI tool** and a **drop-in k9s plugin** (press `Shi
 ## Quick start
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/st-tripathi/kblog/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
 ```
 
 Then:
@@ -39,7 +39,7 @@ kblog --pod <pod-name> --namespace <namespace>
 kblog --deployment <deployment-name> --namespace <namespace>
 ```
 
-See [Installation](https://st-tripathi.github.io/kblog/installation) for all options including manual installs, version pinning, and build from source.
+See [Installation](https://st-shivam.github.io/kblog/installation) for all options including manual installs, version pinning, and build from source.
 
 ---
 
@@ -90,7 +90,7 @@ See [Installation](https://st-tripathi.github.io/kblog/installation) for all opt
 
 `kblog` integrates as a k9s plugin. The install script sets it up automatically. Press `Shift-L` on any pod or deployment to open kblog in place of the default log view.
 
-See [k9s Integration](https://st-tripathi.github.io/kblog/k9s-integration) for manual setup.
+See [k9s Integration](https://st-shivam.github.io/kblog/k9s-integration) for manual setup.
 
 ---
 
@@ -99,7 +99,7 @@ See [k9s Integration](https://st-tripathi.github.io/kblog/k9s-integration) for m
 Requires Go 1.26+.
 
 ```bash
-git clone https://github.com/st-tripathi/kblog.git
+git clone https://github.com/st-shivam/kblog.git
 cd kblog
 make install INSTALL_PATH=$HOME/.local/bin
 ```

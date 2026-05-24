@@ -33,4 +33,5 @@ changelog:
   disable: true
 
 release:
-  description_file: CHANGELOG.md
+  header:
+    contents: "{{ .Env.RELEASE_NOTES }}"

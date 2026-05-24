@@ -1,6 +1,6 @@
 title: kblog
 description: Kubernetes log-tailing TUI with real-time event injection, JSON inspection, and themes.
-url: "https://st-tripathi.github.io"
+url: "https://st-shivam.github.io"
 baseurl: "/kblog"
 
 remote_theme: just-the-docs/just-the-docs
@@ -24,12 +24,12 @@ search:
 # Aux links in the top-right corner
 aux_links:
   "GitHub":
-    - "https://github.com/st-tripathi/kblog"
+    - "https://github.com/st-shivam/kblog"
 
 aux_links_new_tab: true
 
 # Footer
-footer_content: "Released under the <a href=\"https://github.com/st-tripathi/kblog/blob/main/LICENSE\">MIT License</a>."
+footer_content: "Released under the <a href=\"https://github.com/st-shivam/kblog/blob/main/LICENSE\">MIT License</a>."
 
 # Back to top
 back_to_top: true

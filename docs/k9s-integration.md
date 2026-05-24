@@ -34,7 +34,7 @@ When you highlight a resource in k9s and press a configured hotkey:
 The install script and `make install` install the plugin automatically:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/st-tripathi/kblog/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
 # or
 make install
 ```

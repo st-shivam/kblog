@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # kblog installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/st-tripathi/kblog/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
 set -euo pipefail
 
-REPO="st-tripathi/kblog"
+REPO="st-shivam/kblog"
 BINARY="kblog"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
