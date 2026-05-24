@@ -15,8 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var version = "dev"
+
 func main() {
 	// Parse CLI flags
+	versionFlag := flag.Bool("version", false, "Print version and exit")
 	contextFlag := flag.String("context", "", "Kubernetes cluster context name")
 	namespaceFlag := flag.String("namespace", "", "Target Kubernetes namespace")
 	podFlag := flag.String("pod", "", "Target Pod name to stream logs")
@@ -25,6 +28,11 @@ func main() {
 	themeFlag := flag.String("theme", "midnight", "Initial color theme (midnight, dracula, catppuccin, nord, monokai)")
 
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Println("kblog", version)
+		os.Exit(0)
+	}
 
 	// Set initial color theme
 	foundTheme := false

@@ -2,7 +2,7 @@
 
 BINARY_NAME=kblog
 BUILD_DIR=bin
-INSTALL_PATH=/usr/local/bin
+INSTALL_PATH=$(HOME)/.local/bin
 PLUGIN_SRC=plugin/plugins.yaml
 
 # Detect k9s config directory (macOS Library path takes precedence over XDG)
@@ -30,10 +30,12 @@ help:
 	@echo "  make clean            - Remove build artifacts"
 	@echo "  make test             - Run Go tests"
 
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+
 build:
 	@echo "🔨 Compiling kblog..."
 	@mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/$(BINARY_NAME) main.go
+	go build -ldflags "-s -w -X main.version=$(VERSION)" -o $(BUILD_DIR)/$(BINARY_NAME) main.go
 	@echo "✅ Build complete: $(BUILD_DIR)/$(BINARY_NAME)"
 
 test:
