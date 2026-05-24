@@ -11,7 +11,7 @@ nav_order: 1
 A Kubernetes log-tailing TUI that streams pod and deployment logs with real-time K8s event injection, interactive JSON inspection, severity filtering, and themes.
 {: .fs-6 .fw-300 }
 
-[Get Started]({% link installation.md %}){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[Get Started](installation){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [View on GitHub](https://github.com/st-tripathi/kblog){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ---

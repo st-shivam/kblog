@@ -3,11 +3,13 @@ description: Kubernetes log-tailing TUI with real-time event injection, JSON ins
 url: "https://st-tripathi.github.io"
 baseurl: "/kblog"
 
-remote_theme: just-the-docs/just-the-docs@v0.10.0
+remote_theme: just-the-docs/just-the-docs
+
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
 
 color_scheme: dark
-
-logo: "/assets/images/logo.png"
 
 search_enabled: true
 search:
