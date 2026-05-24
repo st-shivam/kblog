@@ -1,7 +1,3 @@
----
-title: k9s Integration
-nav_order: 4
----
 
 # k9s Integration
 
