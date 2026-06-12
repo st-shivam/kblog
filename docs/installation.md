@@ -10,7 +10,7 @@
 
 ## Requirements
 
-- **OS:** Linux x86-64 or ARM64
+- **OS:** Linux or macOS (x86-64 / ARM64)
 - **Cluster access:** A valid kubeconfig (`~/.kube/config` or `$KUBECONFIG`)
 - **Go 1.26+** only needed if building from source
 
@@ -21,10 +21,12 @@
 Downloads the right binary for your platform and installs the k9s plugin automatically.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | sudo bash
 ```
 
-**Custom install directory** (no `sudo`):
+> `sudo` is needed for the default install path (`/usr/local/bin`). To avoid it, see [Custom install directory](#custom-install-directory) below.
+
+<a id="custom-install-directory"></a>**Custom install directory** (no `sudo`):
 
 ```bash
 INSTALL_DIR=$HOME/.local/bin \
@@ -54,6 +56,8 @@ Download the archive for your platform from the [Releases page](https://github.c
 |---|---|
 | Linux x86-64 | `kblog_<version>_linux_amd64.tar.gz` |
 | Linux ARM64 | `kblog_<version>_linux_arm64.tar.gz` |
+| macOS x86-64 | `kblog_<version>_darwin_amd64.tar.gz` |
+| macOS ARM64 | `kblog_<version>_darwin_arm64.tar.gz` |
 
 Extract and install:
 
