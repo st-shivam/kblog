@@ -12,6 +12,7 @@ import (
 	"kblog/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/term"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,7 +26,7 @@ func main() {
 	podFlag := flag.String("pod", "", "Target Pod name to stream logs")
 	deploymentFlag := flag.String("deployment", "", "Target Deployment name to stream logs from all replicas")
 	tailFlag := flag.Int64("tail", 200, "Number of initial log lines to tail")
-	themeFlag := flag.String("theme", "midnight", "Initial color theme (midnight, dracula, catppuccin, nord, monokai)")
+	themeFlag := flag.String("theme", "terminal", "Initial color theme (terminal, midnight, dracula, catppuccin, nord, monokai)")
 
 	flag.Parse()
 
@@ -45,8 +46,8 @@ func main() {
 			break
 		}
 	}
-	if !foundTheme && *themeFlag != "" && *themeFlag != "midnight" {
-		fmt.Printf("Warning: Theme %q not found. Defaulting to Midnight.\n", *themeFlag)
+	if !foundTheme && *themeFlag != "" && *themeFlag != "terminal" {
+		fmt.Printf("Warning: Theme %q not found. Defaulting to Terminal.\n", *themeFlag)
 	}
 
 	// Validation
@@ -56,8 +57,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Suppress status lines when running interactively (TUI handles visuals)
+	isTTY := isTerminal(os.Stdout)
+
 	// Load Kubernetes API Client
-	fmt.Printf("Connecting to Kubernetes cluster (Context: %q, Namespace: %q)...\n", *contextFlag, *namespaceFlag)
+	if !isTTY {
+		fmt.Printf("Connecting to Kubernetes cluster (Context: %q, Namespace: %q)...\n", *contextFlag, *namespaceFlag)
+	}
 	clientInfo, err := k8s.LoadClient(*contextFlag, *namespaceFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Failed to connect to Kubernetes: %v\n", err)
@@ -72,7 +78,9 @@ func main() {
 
 	// If deployment is targeted, find its pods via selector
 	if *deploymentFlag != "" {
-		fmt.Printf("Fetching Deployment %q in namespace %q...\n", *deploymentFlag, ns)
+		if !isTTY {
+			fmt.Printf("Fetching Deployment %q in namespace %q...\n", *deploymentFlag, ns)
+		}
 		deploy, err := clientset.AppsV1().Deployments(ns).Get(context.Background(), *deploymentFlag, metav1.GetOptions{})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to fetch Deployment: %v\n", err)
@@ -186,4 +194,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error running kblog TUI: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func isTerminal(f *os.File) bool {
+	return term.IsTerminal(int(f.Fd()))
 }

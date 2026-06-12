@@ -468,9 +468,15 @@ func (m Model) View() string {
 		if m.viewport.WrapLines {
 			wrapStr = "w✓"
 		}
+		sidebarHint := "%s=sidebar"
+		if m.showSidebar {
+			sidebarHint = "%s=close %s=focus %s=toggle"
+		}
 		helpText := fmt.Sprintf(
-			"%s=sidebar %s=search %s=JSON %s/%s=copy/select %s=wrap %s=sort(%s) %s=level %s=theme %s=follow %s=quit",
+			sidebarHint+" %s=search %s=JSON %s/%s=copy/select %s=wrap %s=sort(%s) %s=level %s=theme %s=follow %s=quit",
 			HelpKeyStyle.Render("l"),
+			HelpKeyStyle.Render("tab"),
+			HelpKeyStyle.Render("space"),
 			HelpKeyStyle.Render("/"),
 			HelpKeyStyle.Render("↵"),
 			HelpKeyStyle.Render("c"),
@@ -494,106 +500,12 @@ func (m Model) View() string {
 	// 4. Join panels vertically
 	fullLayout := lipgloss.JoinVertical(lipgloss.Left, headerPanel, bodyView, footerPanel)
 
-	// If interactive modal is opened, overlap it in the center of the terminal screen
+	// Full-screen JSON inspector (like k9s drill-down)
 	if m.showModal {
-		modalView := m.jsonInspector.Render(m.width, m.height)
-		// Overlay logic: ANSI-aware visual column overlap
-		lines := strings.Split(fullLayout, "\n")
-		modalLines := strings.Split(modalView, "\n")
-
-		// Calculate offsets to center the modal
-		offsetY := (len(lines) - len(modalLines)) / 2
-		offsetX := (m.width - lipgloss.Width(modalView)) / 2
-
-		for i, ml := range modalLines {
-			targetLineIdx := offsetY + i
-			if targetLineIdx >= 0 && targetLineIdx < len(lines) {
-				bgLine := lines[targetLineIdx]
-				bgCells := parseAnsiString(bgLine)
-				fgCells := parseAnsiString(ml)
-
-				// Pad background cells if shorter than offsetX
-				for len(bgCells) < offsetX {
-					bgCells = append(bgCells, ansiCell{char: ' '})
-				}
-
-				// Construct the new line cells by overlaying
-				newCells := make([]ansiCell, 0, len(bgCells))
-				newCells = append(newCells, bgCells[:offsetX]...)
-				newCells = append(newCells, fgCells...)
-
-				endIdx := offsetX + len(fgCells)
-				if len(bgCells) > endIdx {
-					newCells = append(newCells, bgCells[endIdx:]...)
-				}
-
-				lines[targetLineIdx] = cellsToString(newCells)
-			}
-		}
-		fullLayout = strings.Join(lines, "\n")
+		return m.jsonInspector.Render(m.width, m.height)
 	}
 
 	return MainContainer.Render(fullLayout)
 }
 
-// ansiCell represents a single visible character and its active ANSI formatting sequence
-type ansiCell struct {
-	char  rune
-	style string
-}
 
-// parseAnsiString splits a styled ANSI string into visual character cells
-func parseAnsiString(s string) []ansiCell {
-	var cells []ansiCell
-	var currentStyle strings.Builder
-	runes := []rune(s)
-	i := 0
-	n := len(runes)
-
-	for i < n {
-		if runes[i] == '\x1b' && i+1 < n && runes[i+1] == '[' {
-			// Parse escape sequence into a temporary buffer so we can inspect it
-			var seq strings.Builder
-			seq.WriteRune(runes[i])
-			seq.WriteRune(runes[i+1])
-			i += 2
-			for i < n {
-				seq.WriteRune(runes[i])
-				// ANSI escape ends on alphabet character (m, K, etc.)
-				if (runes[i] >= 'a' && runes[i] <= 'z') || (runes[i] >= 'A' && runes[i] <= 'Z') {
-					i++
-					break
-				}
-				i++
-			}
-			seqStr := seq.String()
-			// Reset sequence clears accumulated style; any other sequence appends to it
-			if seqStr == "\x1b[0m" || seqStr == "\x1b[m" {
-				currentStyle.Reset()
-			} else {
-				currentStyle.WriteString(seqStr)
-			}
-			continue
-		}
-
-		// Visible or spacing character — style persists until a reset sequence is seen
-		cells = append(cells, ansiCell{
-			char:  runes[i],
-			style: currentStyle.String(),
-		})
-		i++
-	}
-
-	return cells
-}
-
-// cellsToString converts an ansiCell array back into a fully styled string
-func cellsToString(cells []ansiCell) string {
-	var sb strings.Builder
-	for _, c := range cells {
-		sb.WriteString(c.style)
-		sb.WriteRune(c.char)
-	}
-	sb.WriteString("\x1b[0m") // Safe reset
-	return sb.String()
-}

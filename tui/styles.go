@@ -5,23 +5,37 @@ import "github.com/charmbracelet/lipgloss"
 // Theme holds color tokens for the app appearance
 type Theme struct {
 	Name         string
-	Primary      lipgloss.Color
-	Secondary    lipgloss.Color
-	Accent       lipgloss.Color
-	Info         lipgloss.Color
-	Warn         lipgloss.Color
-	Error        lipgloss.Color
-	Debug        lipgloss.Color
-	Bg           lipgloss.Color
-	HeaderBg     lipgloss.Color
-	Border       lipgloss.Color
-	ActiveBorder lipgloss.Color
+	Primary      lipgloss.TerminalColor
+	Secondary    lipgloss.TerminalColor
+	Accent       lipgloss.TerminalColor
+	Info         lipgloss.TerminalColor
+	Warn         lipgloss.TerminalColor
+	Error        lipgloss.TerminalColor
+	Debug        lipgloss.TerminalColor
+	Bg           lipgloss.TerminalColor
+	HeaderBg     lipgloss.TerminalColor
+	Border       lipgloss.TerminalColor
+	ActiveBorder lipgloss.TerminalColor
 }
 
 // Built-in Themes list
 var Themes = []Theme{
 	{
-		Name:         "Midnight (Default)",
+		Name:         "Terminal (Default)",
+		Primary:      lipgloss.NoColor{},
+		Secondary:    lipgloss.NoColor{},
+		Accent:       lipgloss.NoColor{},
+		Info:         lipgloss.NoColor{},
+		Warn:         lipgloss.NoColor{},
+		Error:        lipgloss.NoColor{},
+		Debug:        lipgloss.NoColor{},
+		Bg:           lipgloss.NoColor{},
+		HeaderBg:     lipgloss.NoColor{},
+		Border:       lipgloss.NoColor{},
+		ActiveBorder: lipgloss.NoColor{},
+	},
+	{
+		Name:         "Midnight",
 		Primary:      lipgloss.Color("#8A2BFF"), // Purple Accent
 		Secondary:    lipgloss.Color("#00E5FF"), // Neon Cyan
 		Accent:       lipgloss.Color("#FF007F"), // Pink Red
@@ -94,17 +108,17 @@ var Themes = []Theme{
 
 // Current theme variables (accessed dynamically)
 var (
-	PrimaryColor   lipgloss.Color
-	SecondaryColor lipgloss.Color
-	AccentColor    lipgloss.Color
-	InfoColor      lipgloss.Color
-	WarnColor      lipgloss.Color
-	ErrorColor     lipgloss.Color
-	DebugColor     lipgloss.Color
-	BgColor        lipgloss.Color
-	HeaderBgColor  lipgloss.Color
-	BorderColor    lipgloss.Color
-	ActiveBorder   lipgloss.Color
+	PrimaryColor   lipgloss.TerminalColor
+	SecondaryColor lipgloss.TerminalColor
+	AccentColor    lipgloss.TerminalColor
+	InfoColor      lipgloss.TerminalColor
+	WarnColor      lipgloss.TerminalColor
+	ErrorColor     lipgloss.TerminalColor
+	DebugColor     lipgloss.TerminalColor
+	BgColor        lipgloss.TerminalColor
+	HeaderBgColor  lipgloss.TerminalColor
+	BorderColor    lipgloss.TerminalColor
+	ActiveBorder   lipgloss.TerminalColor
 )
 
 // UI Component Styles
@@ -193,7 +207,7 @@ func InitStyles(theme Theme) {
 		Bold(true)
 
 	LogContentStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#E2E2E8"))
+		Foreground(InfoColor)
 
 	LogEventBanner = lipgloss.NewStyle().
 		Background(lipgloss.Color("#2A1F30")).
@@ -211,7 +225,7 @@ func InitStyles(theme Theme) {
 	ModalStyle = lipgloss.NewStyle().
 		Border(lipgloss.DoubleBorder()).
 		BorderForeground(PrimaryColor).
-		Background(BgColor).
+		Background(lipgloss.AdaptiveColor{Light: "#F0F0F0", Dark: "#1E1E24"}).
 		Padding(1, 2).
 		Width(65).
 		Height(18)
