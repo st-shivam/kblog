@@ -29,8 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | s
 <a id="custom-install-directory"></a>**Custom install directory** (no `sudo`):
 
 ```bash
-INSTALL_DIR=$HOME/.local/bin \
-  curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/st-shivam/kblog/main/install.sh | INSTALL_DIR=$HOME/.local/bin bash
 ```
 
 If `~/.local/bin` is not on your PATH yet:
