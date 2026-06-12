@@ -17,10 +17,7 @@ case "$ARCH" in
 esac
 case "$OS" in
   linux) ;;
-  darwin)
-    echo "Error: macOS is not supported in this release. Linux x86-64 and ARM64 only."
-    echo "To build from source: git clone https://github.com/st-shivam/kblog.git && cd kblog && make install INSTALL_PATH=\$HOME/.local/bin"
-    exit 1 ;;
+  darwin) ;;
   *) echo "Unsupported OS: $OS"; exit 1 ;;
 esac
 
