@@ -21,9 +21,11 @@ kblog --deployment <name> [flags]
 |---|---|---|
 | `--pod` | Pod name to tail | — |
 | `--deployment` | Deployment name — tails all replicas | — |
-| `--namespace` | Kubernetes namespace | `default` |
+| `--namespace` | Kubernetes namespace | current context / `default` |
 | `--context` | Kubeconfig context | current context |
+| `--tail` | Number of initial log lines | `200` |
 | `--theme` | Starting color theme | `midnight` |
+| `--version` | Print version and exit | — |
 
 > `--pod` and `--deployment` are mutually exclusive. One must be provided.
 
