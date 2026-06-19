@@ -30,11 +30,20 @@ type Viewport struct {
 	Width         int
 	Focused       bool
 
+	// StreamError, when non-empty, is a sticky indicator that the log stream is
+	// down (rendered in the empty state and footer instead of a transient toast).
+	StreamError string
+
 	// New feature state
 	WrapLines       bool // toggle word-wrap on long lines
 	SortDescending  bool // toggle newest-first sort
 	SelectionStart  int  // anchor line for multiline copy
 	SelectionActive bool // whether visual selection mode is on
+
+	// Rolling-buffer bookkeeping (surfaced so the user knows when history is
+	// being dropped — see the footer indicator).
+	TotalReceived int  // total lines ever ingested into AllLines
+	Truncated     bool // true once the rolling buffer has discarded old lines
 
 	// Stern-style pod color mappings
 	podColors   map[string]lipgloss.Color
@@ -78,9 +87,11 @@ func NewViewport() *Viewport {
 
 // AddLine inserts a new log line into the global buffer
 func (v *Viewport) AddLine(line k8s.LogLine) {
+	v.TotalReceived++
 	v.AllLines = append(v.AllLines, line)
 	if len(v.AllLines) > 50000 {
 		v.AllLines = v.AllLines[10000:]
+		v.Truncated = true // oldest lines have been dropped
 	}
 }
 
@@ -397,7 +408,19 @@ func (v *Viewport) Render(width int, height int) string {
 	}
 
 	if len(v.FilteredLines) == 0 {
-		return box.Render("\n\n   Waiting for logs... (Press Shift-L to toggle container filter sidebar)")
+		var msg string
+		switch {
+		case v.StreamError != "":
+			// Sticky stream-down indicator.
+			msg = "⚠️  " + v.StreamError
+		case len(v.AllLines) == 0:
+			// Nothing ingested yet — we're connecting / awaiting the first lines.
+			msg = "Connecting… waiting for logs. (Press l to toggle the container filter sidebar)"
+		default:
+			// Logs exist but the active filter matched none of them.
+			msg = fmt.Sprintf("0 of %d lines match the current filter. (Press 0 to reset the level filter, / to edit search, l for sidebar)", len(v.AllLines))
+		}
+		return box.Render("\n\n   " + msg)
 	}
 
 	// Compute selection range for rendering

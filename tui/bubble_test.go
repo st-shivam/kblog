@@ -16,7 +16,7 @@ import (
 func newTestModel() *Model {
 	InitStyles(Themes[0])
 	ch := make(chan k8s.LogLine, 1)
-	m := NewModel("ctx", "ns", "pod", "", ch, nil, nil, nil)
+	m := NewModel("ctx", "ns", "pod", "", "v9.9.9-test", ch, nil, nil, nil)
 	m.width = 120
 	m.height = 40
 	return m
@@ -258,6 +258,28 @@ func TestView_FooterShowsSortIndicator(t *testing.T) {
 	}
 }
 
+func TestView_HeaderShowsBuildVersion(t *testing.T) {
+	m := newTestModel() // version "v9.9.9-test"
+	view := m.View()
+	if !strings.Contains(view, "v9.9.9-test") {
+		t.Errorf("header should show the build version v9.9.9-test, got %q", view)
+	}
+	if strings.Contains(view, "v1.0.0") {
+		t.Errorf("header must not show the old hardcoded v1.0.0, got %q", view)
+	}
+}
+
+func TestView_HeaderVersionFallsBackToDev(t *testing.T) {
+	InitStyles(Themes[0])
+	ch := make(chan k8s.LogLine, 1)
+	m := NewModel("ctx", "ns", "pod", "", "", ch, nil, nil, nil)
+	m.width = 120
+	m.height = 40
+	if !strings.Contains(m.View(), "dev") {
+		t.Errorf("empty version should fall back to 'dev', got %q", m.View())
+	}
+}
+
 func TestView_FooterNoFormatErrors(t *testing.T) {
 	m := newTestModel()
 
@@ -299,6 +321,15 @@ func TestView_FooterLabelsMatchState(t *testing.T) {
 	view = m.View()
 	if !strings.Contains(view, "=close") || !strings.Contains(view, "=focus") || !strings.Contains(view, "=toggle") {
 		t.Errorf("footer (sidebar open) should advertise close/focus/toggle, got %q", view)
+	}
+}
+
+func TestView_StickyStreamErrorInFooter(t *testing.T) {
+	m := newTestModel()
+	m.viewport.StreamError = "Log stream disconnected. No further logs will arrive."
+	view := m.View()
+	if !strings.Contains(view, "Log stream disconnected.") {
+		t.Errorf("footer should show the sticky stream error, got %q", view)
 	}
 }
 

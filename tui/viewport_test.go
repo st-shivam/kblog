@@ -521,3 +521,72 @@ func TestFormatLogLine_EventNotWrapped(t *testing.T) {
 		t.Error("event lines should not be word-wrapped")
 	}
 }
+
+// ── #13: rolling-buffer truncation indicator ──────────────────────────────────
+
+func TestViewport_BufferTruncationFlag(t *testing.T) {
+	v := NewViewport()
+	for i := 0; i < 50001; i++ {
+		v.AddLine(k8s.LogLine{})
+	}
+	if !v.Truncated {
+		t.Error("Truncated should be true after the buffer exceeds its cap")
+	}
+	if v.TotalReceived != 50001 {
+		t.Errorf("TotalReceived = %d, want 50001", v.TotalReceived)
+	}
+	if len(v.AllLines) > 50000 {
+		t.Errorf("AllLines should be capped at 50000, got %d", len(v.AllLines))
+	}
+}
+
+func TestViewport_NotTruncatedBelowCap(t *testing.T) {
+	v := NewViewport()
+	for i := 0; i < 100; i++ {
+		v.AddLine(k8s.LogLine{})
+	}
+	if v.Truncated {
+		t.Error("Truncated should stay false below the cap")
+	}
+}
+
+// ── #15: distinct empty/connection states ─────────────────────────────────────
+
+func TestViewport_EmptyState_Connecting(t *testing.T) {
+	InitStyles(Themes[0])
+	v := NewViewport()
+	out := v.Render(80, 20)
+	if !strings.Contains(out, "Connecting") {
+		t.Errorf("with no lines yet the viewport should show a connecting state, got:\n%s", out)
+	}
+	// Old, inconsistent hint must be gone.
+	if strings.Contains(out, "Shift-L") {
+		t.Errorf("empty-state hint should not reference Shift-L, got:\n%s", out)
+	}
+}
+
+func TestViewport_EmptyState_FilterMatchesNothing(t *testing.T) {
+	InitStyles(Themes[0])
+	v := NewViewport()
+	// Lines exist in the buffer but none pass the (empty) FilteredLines set.
+	for i := 0; i < 5; i++ {
+		v.AddLine(k8s.LogLine{Content: "x"})
+	}
+	out := v.Render(80, 20)
+	if !strings.Contains(out, "match the current filter") {
+		t.Errorf("when logs exist but none match, the empty state should say so, got:\n%s", out)
+	}
+	if !strings.Contains(out, "5") {
+		t.Errorf("filter-empty state should report the buffer size (5), got:\n%s", out)
+	}
+}
+
+func TestViewport_EmptyState_StreamError(t *testing.T) {
+	InitStyles(Themes[0])
+	v := NewViewport()
+	v.StreamError = "Log stream disconnected."
+	out := v.Render(80, 20)
+	if !strings.Contains(out, "Log stream disconnected.") {
+		t.Errorf("stream-error state should render the sticky error, got:\n%s", out)
+	}
+}

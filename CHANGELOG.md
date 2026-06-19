@@ -32,7 +32,7 @@ Press `Shift-L` on any Pod or Deployment in k9s to open kblog in place of the de
 
 ### Platform support
 
-Linux x86-64 and ARM64. macOS builds are not included in this release.
+Linux and macOS, on both x86-64 and ARM64.
 
 ### Installation
 

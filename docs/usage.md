@@ -65,7 +65,7 @@ Available themes: `midnight` · `dracula` · `catppuccin` · `nord` · `monokai`
 | `↓` / `j` | Scroll down |
 | `PgUp` / `PgDn` | Page up / page down |
 | `f` | Follow — jump to latest and lock auto-scroll |
-| `Tab` | Switch focus between log view and sidebar |
+| `Tab` | Switch focus between log view and sidebar _(only when the sidebar is open)_ |
 
 ### Search & filter
 

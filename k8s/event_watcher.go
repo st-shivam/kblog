@@ -79,6 +79,10 @@ func (w *EventWatcher) watchLoop() {
 		opts.FieldSelector = fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", w.podName)
 	}
 
+	// Exponential backoff (capped) on watch-establishment failures so a
+	// persistently failing watch doesn't spin at a fixed interval forever.
+	backoff := initialBackoff
+
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -88,14 +92,17 @@ func (w *EventWatcher) watchLoop() {
 
 		watcher, err := w.clientset.CoreV1().Events(w.namespace).Watch(w.ctx, opts)
 		if err != nil {
-			// Back off and retry
 			select {
 			case <-w.ctx.Done():
 				return
-			case <-time.After(5 * time.Second):
+			case <-time.After(backoff):
+				backoff = nextBackoff(backoff)
 				continue
 			}
 		}
+
+		// Watch established: reset backoff before consuming the stream.
+		backoff = initialBackoff
 
 		w.processEventStream(watcher.ResultChan())
 		watcher.Stop()

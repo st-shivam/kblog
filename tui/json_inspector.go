@@ -17,6 +17,7 @@ type JSONInspector struct {
 	IsJSON     bool
 	ScrollY    int
 	Height     int
+	TotalLines int // total rendered lines of the current content (set by Render)
 }
 
 // NewJSONInspector initializes an empty inspector
@@ -54,11 +55,23 @@ func (j *JSONInspector) ScrollUp() {
 	}
 }
 
-// ScrollDown scrolls the inspector content down
-func (j *JSONInspector) ScrollDown(maxLines int) {
-	if j.ScrollY < maxLines-j.Height {
+// ScrollDown scrolls the inspector content down, bounded by the actual rendered
+// content length (TotalLines) so the bottom is reachable and we never scroll
+// into blank space below the content.
+func (j *JSONInspector) ScrollDown() {
+	maxScroll := j.maxScroll()
+	if j.ScrollY < maxScroll {
 		j.ScrollY++
 	}
+}
+
+// maxScroll is the largest valid ScrollY for the current content/height.
+func (j *JSONInspector) maxScroll() int {
+	max := j.TotalLines - j.Height
+	if max < 0 {
+		max = 0
+	}
+	return max
 }
 
 // Render returns the styled string representation of the inspector modal
@@ -78,6 +91,13 @@ func (j *JSONInspector) Render(width int, height int) string {
 		renderedContent, totalLines = j.formatRawText(width - 12)
 	}
 
+	// Record content length and clamp scroll so the keybinding handler can bound
+	// against the real content rather than a hardcoded value.
+	j.TotalLines = totalLines
+	if j.ScrollY > j.maxScroll() {
+		j.ScrollY = j.maxScroll()
+	}
+
 	// Dynamic scroll slicing
 	lines := strings.Split(renderedContent, "\n")
 	if len(lines) > j.Height {
@@ -91,7 +111,7 @@ func (j *JSONInspector) Render(width int, height int) string {
 
 	// Add top header / control tip
 	headerText := lipgloss.NewStyle().Foreground(PrimaryColor).Bold(true).Render("⚙ Structured Log Inspector")
-	closeTip := HelpDescStyle.Render(" (Esc / Enter to close | Ctrl-J/K to scroll)")
+	closeTip := HelpDescStyle.Render(" (Esc / Enter to close | j/k or ↑/↓ to scroll)")
 	title := fmt.Sprintf("%s%s\n\n", headerText, closeTip)
 
 	// Add scrollbar status indicator
@@ -99,7 +119,7 @@ func (j *JSONInspector) Render(width int, height int) string {
 	if totalLines > j.Height {
 		scrollIndicator = lipgloss.NewStyle().
 			Foreground(SecondaryColor).
-			Render(fmt.Sprintf("\n\n-- Page %d/%d (Use Ctrl-J/K to scroll) --", j.ScrollY+1, totalLines-j.Height+1))
+			Render(fmt.Sprintf("\n\n-- Page %d/%d (Use j/k or ↑/↓ to scroll) --", j.ScrollY+1, totalLines-j.Height+1))
 	}
 
 	return modal.Render(title + renderedContent + scrollIndicator)

@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blueviolet.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.26%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![Kubernetes API](https://img.shields.io/badge/K8s%20API-v1.28%2B-326CE5.svg?style=flat&logo=kubernetes)](https://kubernetes.io)
-[![Platform support](https://img.shields.io/badge/Platform-Linux-lightgrey.svg)](https://golang.org)
+[![Platform support](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS-lightgrey.svg)](https://golang.org)
 [![CI](https://github.com/st-shivam/kblog/actions/workflows/ci.yml/badge.svg)](https://github.com/st-shivam/kblog/actions/workflows/ci.yml)
 
 **`kblog`** is a Kubernetes log-tailing TUI that streams pod and deployment logs with real-time K8s event injection, interactive JSON inspection, severity filtering, and themes.
@@ -82,7 +82,7 @@ See [Installation](https://github.com/st-shivam/kblog/blob/main/docs/installatio
 | `s` | Toggle sort order |
 | `t` | Cycle themes |
 | `l` | Toggle container sidebar |
-| `Tab` | Switch focus |
+| `Tab` | Switch focus between log view and sidebar (only when the sidebar is open) |
 
 ---
 

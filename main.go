@@ -194,7 +194,7 @@ func main() {
 	if ctxDisplayName == "" {
 		ctxDisplayName = "current"
 	}
-	model := tui.NewModel(ctxDisplayName, ns, *podFlag, *deploymentFlag, sharedLogChan, streamer, watcher, cancel)
+	model := tui.NewModel(ctxDisplayName, ns, *podFlag, *deploymentFlag, version, sharedLogChan, streamer, watcher, cancel)
 
 	// Run bubbletea AltScreen program (takes over terminal and restores on exit)
 	p := tea.NewProgram(model, tea.WithAltScreen())
