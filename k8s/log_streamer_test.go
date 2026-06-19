@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -16,6 +17,22 @@ func makePod(name string, initContainers, containers []string) corev1.Pod {
 		pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{Name: c})
 	}
 	return pod
+}
+
+func TestNextBackoff_DoublesAndCaps(t *testing.T) {
+	cases := []struct {
+		in, want time.Duration
+	}{
+		{1 * time.Second, 2 * time.Second},
+		{2 * time.Second, 4 * time.Second},
+		{16 * time.Second, 30 * time.Second}, // 32s capped to 30s
+		{30 * time.Second, 30 * time.Second}, // stays at cap
+	}
+	for _, c := range cases {
+		if got := nextBackoff(c.in); got != c.want {
+			t.Errorf("nextBackoff(%s) = %s, want %s", c.in, got, c.want)
+		}
+	}
 }
 
 func TestEnumerateContainers_InitAndRegularAcrossPods(t *testing.T) {
@@ -198,16 +215,35 @@ func TestDetectLogLevel(t *testing.T) {
 		{"debug: entering handler", "DEBUG"},
 		{"debug mode enabled", "DEBUG"},
 		{"dbg: skip", "DEBUG"},
-		// Contains-based debug detection
-		{" debug mode enabled", "DEBUG"},
+		// #14: panic / additional severity prefixes
+		{"panic: runtime error: invalid memory address", "ERROR"},
+		{"critical: disk failure", "ERROR"},
+		{"severe: subsystem down", "ERROR"},
+		{"exception in thread \"main\"", "ERROR"},
+		{"traceback (most recent call last):", "ERROR"},
+		// #14: bracketed [LEVEL] tags
+		{"[ERROR] something failed", "ERROR"},
+		{"[FATAL] giving up", "ERROR"},
+		{"2024-01-01 [WARN] disk almost full", "WARN"},
+		{"[DEBUG] entering loop", "DEBUG"},
+		// #14: logfmt level= markers
+		{"ts=2024-01-01 level=error msg=boom", "ERROR"},
+		{"ts=2024-01-01 level=warn msg=low", "WARN"},
+		{"ts=2024-01-01 level=debug msg=trace", "DEBUG"},
+		// #14: JSON critical
+		{`{"level":"critical","msg":"meltdown"}`, "ERROR"},
 		// Default INFO
 		{"INFO server started", "INFO"},
 		{"just a plain log line", "INFO"},
-		// False-positive regression cases: mid-sentence error/warn words must NOT trigger
+		// #7 + false-positive regression cases: mid-sentence severity words must NOT trigger
+		{" debug mode enabled", "INFO"},   // #7: mid-sentence debug is NOT DEBUG
+		{"starting debug server", "INFO"}, // #7
+		{"enabled dbg endpoint", "INFO"},  // #7
 		{"connection error rate: 0%", "INFO"},
 		{"no error occurred", "INFO"},
 		{"0 warnings issued", "INFO"},
 		{"processed request without warnings", "INFO"},
+		{"caught no exception during run", "INFO"}, // mid-sentence exception must NOT trigger
 	}
 	for _, tt := range cases {
 		if got := detectLogLevel(tt.input); got != tt.want {
