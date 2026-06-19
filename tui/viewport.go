@@ -397,7 +397,7 @@ func (v *Viewport) Render(width int, height int) string {
 	v.Width = width
 	v.Height = height
 
-	box := ViewportStyle.Copy().
+	box := ViewportStyle.
 		Width(width - 4).
 		Height(height - 2)
 
@@ -454,7 +454,6 @@ func (v *Viewport) Render(width int, height int) string {
 					sb.WriteString("\n")
 				}
 			}
-			physicalLines = maxPhysical
 			break
 		}
 
@@ -475,7 +474,7 @@ func (v *Viewport) formatLogLine(line k8s.LogLine, maxLen int, isSelected bool, 
 
 	// 2. Pod prefix
 	podColor := v.GetPodColor(line.Pod)
-	podStyle := LogPodStyle.Copy().Foreground(podColor)
+	podStyle := LogPodStyle.Foreground(podColor)
 	styledPod := podStyle.Render(fmt.Sprintf("[%s]", line.Pod))
 
 	// 3. Level badge
@@ -497,9 +496,10 @@ func (v *Viewport) formatLogLine(line k8s.LogLine, maxLen int, isSelected bool, 
 	// 4. Content rendering
 	if line.IsEvent {
 		eventStyle := LogEventBanner
-		if line.Level == "ERROR" {
+		switch line.Level {
+		case "ERROR":
 			eventStyle = eventStyle.Background(lipgloss.Color("#3A1B1F")).Foreground(ErrorColor)
-		} else if line.Level == "WARN" {
+		case "WARN":
 			eventStyle = eventStyle.Background(lipgloss.Color("#352A15")).Foreground(WarnColor)
 		}
 		lineText := prefix + eventStyle.Render(line.Content)

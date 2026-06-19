@@ -97,7 +97,7 @@ func (s *Sidebar) Render(width int, height int) string {
 	s.Height = height
 
 	// Create sidebar container style with dynamic height
-	sidebarContainer := SidebarStyle.Copy().
+	sidebarContainer := SidebarStyle.
 		Width(width - 4).
 		Height(height - 2)
 

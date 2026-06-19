@@ -1,0 +1,69 @@
+name: Integration (E2E)
+
+# End-to-end suite that exercises the real K8s log-streaming/event path against
+# an ephemeral k3d cluster. Kept separate and non-blocking initially: it runs on
+# a nightly schedule, on demand, and on pushes to main — not on pull requests —
+# so it never gates PR merges. Add `pull_request` here (and mark it required)
+# once it has proven stable.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *" # daily 06:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - "**.go"
+      - "tests/**"
+      - ".github/workflows/integration.yml"
+
+jobs:
+  e2e:
+    name: k3d end-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build kblog binary
+        run: go build -o kblog .
+
+      - name: Create k3d cluster (context k3d-dev)
+        uses: AbsaOSS/k3d-action@v2
+        with:
+          # Cluster name "dev" yields kube-context "k3d-dev", matching the
+          # default expected by tests/run_tests.sh.
+          cluster-name: dev
+          args: >-
+            --agents 1
+            --wait
+
+      - name: Apply test fixtures
+        run: |
+          kubectl config use-context k3d-dev
+          kubectl apply -f tests/fixtures.yaml
+
+      - name: Wait for fixture workloads
+        run: |
+          kubectl --context k3d-dev -n kblog-test rollout status deploy/noisy-logger --timeout=120s
+          kubectl --context k3d-dev -n kblog-test rollout status deploy/json-logger --timeout=120s
+          kubectl --context k3d-dev -n kblog-test rollout status deploy/multi-container --timeout=120s
+          # crashloop is expected to be unhealthy; give it a moment to produce events.
+          sleep 10
+
+      - name: Run integration suite
+        env:
+          KBLOG: ./kblog
+          CTX: k3d-dev
+        run: ./tests/run_tests.sh
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          kubectl --context k3d-dev -n kblog-test get pods -o wide || true
+          kubectl --context k3d-dev -n kblog-test get events --sort-by=.lastTimestamp || true

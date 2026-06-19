@@ -1,0 +1,20 @@
+# golangci-lint configuration for kblog.
+# Docs: https://golangci-lint.run/
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # The "standard" set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+
+formatters:
+  # Enforce gofmt and goimports formatting (run via `golangci-lint fmt`).
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
