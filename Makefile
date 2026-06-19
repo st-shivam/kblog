@@ -15,7 +15,7 @@ K9S_CONFIG_DIR := $(shell \
     echo "$$HOME/.config/k9s"; \
   fi)
 
-.PHONY: all build test clean install uninstall install-plugin uninstall-plugin help
+.PHONY: all build test lint clean install uninstall install-plugin uninstall-plugin help
 
 all: build
 
@@ -29,6 +29,7 @@ help:
 	@echo "  make uninstall-plugin - Remove k9s plugin only"
 	@echo "  make clean            - Remove build artifacts"
 	@echo "  make test             - Run Go tests"
+	@echo "  make lint             - Run golangci-lint (gofmt + go vet + staticcheck)"
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
@@ -41,6 +42,14 @@ build:
 test:
 	@echo "🧪 Running tests..."
 	go test -v ./...
+
+lint:
+	@echo "🔍 Linting..."
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+	  echo "golangci-lint not found. Install with:"; \
+	  echo "  GOTOOLCHAIN=local go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0"; \
+	  exit 1; }
+	golangci-lint run ./...
 
 clean:
 	@echo "🧹 Cleaning build directories..."

@@ -123,22 +123,22 @@ var (
 
 // UI Component Styles
 var (
-	MainContainer    lipgloss.Style
-	HeaderStyle      lipgloss.Style
-	TitleStyle       lipgloss.Style
-	FooterStyle      lipgloss.Style
-	SidebarStyle     lipgloss.Style
-	SidebarTitle     lipgloss.Style
-	ContainerActive  lipgloss.Style
+	MainContainer     lipgloss.Style
+	HeaderStyle       lipgloss.Style
+	TitleStyle        lipgloss.Style
+	FooterStyle       lipgloss.Style
+	SidebarStyle      lipgloss.Style
+	SidebarTitle      lipgloss.Style
+	ContainerActive   lipgloss.Style
 	ContainerInactive lipgloss.Style
-	ViewportStyle    lipgloss.Style
-	LogTimeStyle     lipgloss.Style
-	LogPodStyle      lipgloss.Style
-	LogContentStyle  lipgloss.Style
-	LogEventBanner   lipgloss.Style
-	HelpKeyStyle     lipgloss.Style
-	HelpDescStyle    lipgloss.Style
-	ModalStyle       lipgloss.Style
+	ViewportStyle     lipgloss.Style
+	LogTimeStyle      lipgloss.Style
+	LogPodStyle       lipgloss.Style
+	LogContentStyle   lipgloss.Style
+	LogEventBanner    lipgloss.Style
+	HelpKeyStyle      lipgloss.Style
+	HelpDescStyle     lipgloss.Style
+	ModalStyle        lipgloss.Style
 )
 
 // InitStyles loads a specific theme and compiles all Lipgloss styles

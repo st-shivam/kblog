@@ -65,7 +65,7 @@ func (j *JSONInspector) ScrollDown(maxLines int) {
 func (j *JSONInspector) Render(width int, height int) string {
 	j.Height = height - 4
 
-	modal := ModalStyle.Copy().
+	modal := ModalStyle.
 		Width(width - 8).
 		Height(height - 4)
 
@@ -114,7 +114,7 @@ func (j *JSONInspector) formatRawText(maxLen int) (string, int) {
 
 	var sb strings.Builder
 	var lineLen int
-	var totalLines int = 1
+	totalLines := 1
 
 	for _, word := range words {
 		if lineLen+len(word)+1 > maxLen {
