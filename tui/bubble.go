@@ -468,15 +468,20 @@ func (m Model) View() string {
 		if m.viewport.WrapLines {
 			wrapStr = "w✓"
 		}
-		sidebarHint := "%s=sidebar"
+		// Build the sidebar hint independently so its verb/arg count matches the
+		// current sidebar state. The remaining help string has a fixed verb count.
+		var sidebarHint string
 		if m.showSidebar {
-			sidebarHint = "%s=close %s=focus %s=toggle"
+			sidebarHint = fmt.Sprintf("%s=close %s=focus %s=toggle",
+				HelpKeyStyle.Render("l"),
+				HelpKeyStyle.Render("tab"),
+				HelpKeyStyle.Render("space"),
+			)
+		} else {
+			sidebarHint = fmt.Sprintf("%s=sidebar", HelpKeyStyle.Render("l"))
 		}
-		helpText := fmt.Sprintf(
-			sidebarHint+" %s=search %s=JSON %s/%s=copy/select %s=wrap %s=sort(%s) %s=level %s=theme %s=follow %s=quit",
-			HelpKeyStyle.Render("l"),
-			HelpKeyStyle.Render("tab"),
-			HelpKeyStyle.Render("space"),
+		helpText := sidebarHint + fmt.Sprintf(
+			" %s=search %s=JSON %s/%s=copy/select %s=wrap %s=sort(%s) %s=level %s=theme %s=follow %s=quit",
 			HelpKeyStyle.Render("/"),
 			HelpKeyStyle.Render("↵"),
 			HelpKeyStyle.Render("c"),
@@ -507,5 +512,3 @@ func (m Model) View() string {
 
 	return MainContainer.Render(fullLayout)
 }
-
-

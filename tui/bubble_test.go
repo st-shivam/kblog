@@ -258,6 +258,50 @@ func TestView_FooterShowsSortIndicator(t *testing.T) {
 	}
 }
 
+func TestView_FooterNoFormatErrors(t *testing.T) {
+	m := newTestModel()
+
+	// Default state: sidebar closed.
+	view := m.View()
+	if strings.Contains(view, "%!(EXTRA") {
+		t.Errorf("footer (sidebar closed) must not contain a fmt EXTRA error: %q", view)
+	}
+	if strings.Contains(view, "%!") {
+		t.Errorf("footer (sidebar closed) must not contain any fmt verb error: %q", view)
+	}
+
+	// Sidebar open state.
+	m.showSidebar = true
+	view = m.View()
+	if strings.Contains(view, "%!(EXTRA") {
+		t.Errorf("footer (sidebar open) must not contain a fmt EXTRA error: %q", view)
+	}
+	if strings.Contains(view, "%!") {
+		t.Errorf("footer (sidebar open) must not contain any fmt verb error: %q", view)
+	}
+}
+
+func TestView_FooterLabelsMatchState(t *testing.T) {
+	m := newTestModel()
+
+	// Sidebar closed: the toggle hint should read "l=sidebar" and search should
+	// be bound to "/", not shifted onto another key.
+	view := m.View()
+	if !strings.Contains(view, "=sidebar") {
+		t.Errorf("footer (sidebar closed) should advertise the sidebar toggle, got %q", view)
+	}
+	if !strings.Contains(view, "=search") {
+		t.Errorf("footer should advertise search, got %q", view)
+	}
+
+	// Sidebar open: close/focus/toggle hints should appear.
+	m.showSidebar = true
+	view = m.View()
+	if !strings.Contains(view, "=close") || !strings.Contains(view, "=focus") || !strings.Contains(view, "=toggle") {
+		t.Errorf("footer (sidebar open) should advertise close/focus/toggle, got %q", view)
+	}
+}
+
 func TestView_FooterShowsWrapCheckmark(t *testing.T) {
 	m := newTestModel()
 
