@@ -32,6 +32,21 @@ type LogLine struct {
 // picked up.
 const podPollInterval = 5 * time.Second
 
+// Reconnect backoff bounds shared by the log streamer and event watcher.
+const (
+	initialBackoff = 1 * time.Second
+	maxBackoff     = 30 * time.Second
+)
+
+// nextBackoff doubles the current backoff, capped at maxBackoff.
+func nextBackoff(current time.Duration) time.Duration {
+	next := current * 2
+	if next > maxBackoff {
+		return maxBackoff
+	}
+	return next
+}
+
 // LogStreamer handles concurrent log streaming from K8s pods
 type LogStreamer struct {
 	clientset *kubernetes.Clientset
@@ -246,7 +261,13 @@ func (s *LogStreamer) streamContainerLogs(podName, containerName string) {
 		Timestamps: true, // We want K8s to add RFC3339 timestamps for chronological sorting
 	}
 
-	// Retry loop for transient connection dropouts
+	// Retry loop for transient connection dropouts. Uses exponential backoff and
+	// collapses a run of consecutive failures into a single WARN line (re-armed
+	// only after a successful reconnect) so a permanently-failing container
+	// doesn't flood the timeline every few seconds.
+	backoff := initialBackoff
+	failureNotified := false
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -257,26 +278,33 @@ func (s *LogStreamer) streamContainerLogs(podName, containerName string) {
 		req := s.clientset.CoreV1().Pods(s.namespace).GetLogs(podName, opts)
 		stream, err := req.Stream(s.ctx)
 		if err != nil {
-			// Notify about connection failure/retry
-			select {
-			case s.outChan <- LogLine{
-				Timestamp: time.Now(),
-				Pod:       podName,
-				Container: containerName,
-				Content:   fmt.Sprintf("[System] Failed to stream logs: %v. Retrying in 3s...", err),
-				IsEvent:   true,
-				Level:     "WARN",
-			}:
-			case <-s.ctx.Done():
-				return
+			if !failureNotified {
+				select {
+				case s.outChan <- LogLine{
+					Timestamp: time.Now(),
+					Pod:       podName,
+					Container: containerName,
+					Content:   fmt.Sprintf("[System] Failed to stream logs: %v. Retrying with backoff (up to %s)...", err, maxBackoff),
+					IsEvent:   true,
+					Level:     "WARN",
+				}:
+				case <-s.ctx.Done():
+					return
+				}
+				failureNotified = true
 			}
 			select {
 			case <-s.ctx.Done():
 				return
-			case <-time.After(3 * time.Second):
+			case <-time.After(backoff):
+				backoff = nextBackoff(backoff)
 				continue
 			}
 		}
+
+		// Connected successfully: reset backoff and re-arm failure notification.
+		backoff = initialBackoff
+		failureNotified = false
 
 		s.readStream(stream, podName, containerName)
 		_ = stream.Close()
@@ -389,12 +417,34 @@ func extractJSONFields(content string) map[string]string {
 	return fields
 }
 
-// detectLogLevel tries to parse the severity from raw text or JSON prefix
+func containsAny(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAnyPrefix(s string, prefixes ...string) bool {
+	for _, p := range prefixes {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// detectLogLevel tries to parse the severity from raw text or structured markers.
+// Free-text markers are matched prefix-only to avoid mid-sentence false
+// positives (e.g. "no error occurred", "starting debug server"). Structured
+// markers (JSON level fields, logfmt level=, bracketed [LEVEL] tags) are matched
+// anywhere since they carry negligible false-positive risk.
 func detectLogLevel(content string) string {
 	lowerContent := strings.ToLower(content)
 
-	// JSON structured log fields (exact key match, no false positives)
-	if strings.Contains(lowerContent, `"level":"error"`) || strings.Contains(lowerContent, `"level":"fatal"`) {
+	// Structured JSON level fields, e.g. {"level":"error"}
+	if containsAny(lowerContent, `"level":"error"`, `"level":"fatal"`, `"level":"critical"`) {
 		return "ERROR"
 	}
 	if strings.Contains(lowerContent, `"level":"warn"`) {
@@ -404,20 +454,41 @@ func detectLogLevel(content string) string {
 		return "DEBUG"
 	}
 
-	// Prefix-based severity markers (e.g. "error: ...", "warn something")
-	// Avoid mid-sentence substring matches that cause false positives.
-	if strings.HasPrefix(lowerContent, "error ") || strings.HasPrefix(lowerContent, "error:") ||
-		strings.HasPrefix(lowerContent, "err ") || strings.HasPrefix(lowerContent, "err:") ||
-		strings.HasPrefix(lowerContent, "fatal ") || strings.HasPrefix(lowerContent, "fatal:") {
+	// logfmt level markers, e.g. ts=... level=error msg=...
+	if containsAny(lowerContent, "level=error", "level=fatal", "level=critical") {
 		return "ERROR"
 	}
-	if strings.HasPrefix(lowerContent, "warn ") || strings.HasPrefix(lowerContent, "warn:") ||
-		strings.HasPrefix(lowerContent, "warning ") || strings.HasPrefix(lowerContent, "warning:") {
+	if containsAny(lowerContent, "level=warn", "level=warning") {
 		return "WARN"
 	}
-	if strings.HasPrefix(lowerContent, "debug ") || strings.HasPrefix(lowerContent, "debug:") ||
-		strings.HasPrefix(lowerContent, "dbg ") || strings.HasPrefix(lowerContent, "dbg:") ||
-		strings.Contains(lowerContent, " debug ") || strings.Contains(lowerContent, " dbg ") {
+	if strings.Contains(lowerContent, "level=debug") {
+		return "DEBUG"
+	}
+
+	// Bracketed severity tags emitted by many logging frameworks, e.g. [ERROR]
+	if containsAny(lowerContent, "[error]", "[fatal]", "[critical]", "[severe]") {
+		return "ERROR"
+	}
+	if containsAny(lowerContent, "[warn]", "[warning]") {
+		return "WARN"
+	}
+	if strings.Contains(lowerContent, "[debug]") {
+		return "DEBUG"
+	}
+
+	// Prefix-based severity markers. Includes Go panics, syslog/JUL severities,
+	// and Java/Python stack-trace headers.
+	if hasAnyPrefix(lowerContent,
+		"error ", "error:", "err ", "err:",
+		"fatal ", "fatal:", "panic:", "panic ",
+		"critical ", "critical:", "severe ", "severe:",
+		"exception ", "exception:", "traceback ", "traceback:") {
+		return "ERROR"
+	}
+	if hasAnyPrefix(lowerContent, "warn ", "warn:", "warning ", "warning:") {
+		return "WARN"
+	}
+	if hasAnyPrefix(lowerContent, "debug ", "debug:", "dbg ", "dbg:") {
 		return "DEBUG"
 	}
 
