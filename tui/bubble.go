@@ -28,6 +28,7 @@ type Model struct {
 	podName     string
 	deployment  string
 	contextName string
+	version     string
 	logChan     <-chan k8s.LogLine
 	streamer    *k8s.LogStreamer
 	watcher     *k8s.EventWatcher
@@ -58,6 +59,7 @@ func NewModel(
 	ns string,
 	pod string,
 	deploy string,
+	version string,
 	ch <-chan k8s.LogLine,
 	streamer *k8s.LogStreamer,
 	watcher *k8s.EventWatcher,
@@ -75,6 +77,7 @@ func NewModel(
 		podName:       pod,
 		deployment:    deploy,
 		contextName:   ctxName,
+		version:       version,
 		logChan:       ch,
 		streamer:      streamer,
 		watcher:       watcher,
@@ -157,11 +160,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case streamClosedMsg:
-		m.statusMsg = "⚠️ Log stream disconnected."
-		m.statusTime = time.Now()
+		// Sticky indicator: the merged stream has closed, no more logs will arrive.
+		m.viewport.StreamError = "Log stream disconnected. No further logs will arrive."
 		return m, nil
 
 	case logMsg:
+		// A line arrived: the stream is live, clear any sticky disconnect notice.
+		m.viewport.StreamError = ""
+
 		// 1. Ingest new log line with fast inline filtering
 		m.viewport.AddLineWithFilter(k8s.LogLine(msg), m.sidebar.Selected)
 
@@ -190,7 +196,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "up", "k":
 				m.jsonInspector.ScrollUp()
 			case "down", "j":
-				m.jsonInspector.ScrollDown(40)
+				m.jsonInspector.ScrollDown()
 			}
 			return m, nil
 		}
@@ -423,7 +429,11 @@ func (m Model) View() string {
 	}
 
 	// 1. Build Header
-	headerLeft := TitleStyle.Render("⚡ KBLOG v1.0.0")
+	versionLabel := m.version
+	if versionLabel == "" {
+		versionLabel = "dev"
+	}
+	headerLeft := TitleStyle.Render(fmt.Sprintf("⚡ KBLOG %s", versionLabel))
 	var resourceInfo string
 	if m.podName != "" {
 		resourceInfo = fmt.Sprintf("Pod: %s", m.podName)
@@ -454,10 +464,18 @@ func (m Model) View() string {
 		footerText = m.searchInput.View()
 	} else {
 		var statusText string
-		if m.statusMsg != "" && time.Since(m.statusTime) < 3*time.Second {
+		if m.viewport.StreamError != "" {
+			// Sticky stream-down indicator takes precedence over transient toasts.
+			statusText = lipgloss.NewStyle().Foreground(ErrorColor).Bold(true).Render("⚠️ " + m.viewport.StreamError)
+		} else if m.statusMsg != "" && time.Since(m.statusTime) < 3*time.Second {
 			statusText = lipgloss.NewStyle().Foreground(SecondaryColor).Bold(true).Render(m.statusMsg)
 		} else {
-			statusText = fmt.Sprintf("Matches: %d/%d | AutoScroll: %t", len(m.viewport.FilteredLines), len(m.viewport.AllLines), m.viewport.AutoScroll)
+			bufInfo := fmt.Sprintf("%d", len(m.viewport.AllLines))
+			if m.viewport.Truncated {
+				// Signal that the rolling buffer has dropped older history.
+				bufInfo = fmt.Sprintf("%d kept of %d rcvd ⚠", len(m.viewport.AllLines), m.viewport.TotalReceived)
+			}
+			statusText = fmt.Sprintf("Matches: %d/%s | AutoScroll: %t", len(m.viewport.FilteredLines), bufInfo, m.viewport.AutoScroll)
 		}
 
 		sortIndicator := "↑"

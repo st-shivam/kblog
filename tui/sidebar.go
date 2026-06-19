@@ -64,6 +64,34 @@ func (s *Sidebar) CursorDown() {
 	}
 }
 
+// windowRange returns the [start, end) slice bounds of items to display so that
+// at most visible rows are shown and the cursor row stays within the window
+// (scroll-into-view). It centers the cursor when possible and clamps near the
+// list ends.
+func windowRange(total, cursor, visible int) (start, end int) {
+	if visible <= 0 {
+		visible = 1
+	}
+	if total <= visible {
+		return 0, total
+	}
+	start = cursor - visible/2
+	if start < 0 {
+		start = 0
+	}
+	if start+visible > total {
+		start = total - visible
+	}
+	if start < 0 {
+		start = 0
+	}
+	end = start + visible
+	if end > total {
+		end = total
+	}
+	return start, end
+}
+
 // Render returns the string representation of the sidebar
 func (s *Sidebar) Render(width int, height int) string {
 	s.Height = height
@@ -88,7 +116,21 @@ func (s *Sidebar) Render(width int, height int) string {
 		return sidebarContainer.Render(sb.String())
 	}
 
-	for i, item := range s.Items {
+	// Reserve rows: 2 for the title block plus 1 for the overflow hint. The
+	// remaining rows form the scroll window so the list never overflows the box.
+	visibleRows := height - 2 - 3
+	if visibleRows < 1 {
+		visibleRows = 1
+	}
+	start, end := windowRange(len(s.Items), s.Cursor, visibleRows)
+
+	if start > 0 {
+		sb.WriteString(HelpDescStyle.Render(fmt.Sprintf("▲ %d more", start)))
+		sb.WriteString("\n")
+	}
+
+	for i := start; i < end; i++ {
+		item := s.Items[i]
 		// Shorten long container names to fit
 		displayName := item
 		if len(displayName) > width-10 {
@@ -120,6 +162,10 @@ func (s *Sidebar) Render(width int, height int) string {
 
 		sb.WriteString(line)
 		sb.WriteString("\n")
+	}
+
+	if end < len(s.Items) {
+		sb.WriteString(HelpDescStyle.Render(fmt.Sprintf("▼ %d more", len(s.Items)-end)))
 	}
 
 	return sidebarContainer.Render(sb.String())
