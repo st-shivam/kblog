@@ -39,6 +39,9 @@ jobs:
           # Cluster name "dev" yields kube-context "k3d-dev", matching the
           # default expected by tests/run_tests.sh.
           cluster-name: dev
+          # Pin a current k3d release. The action's stale default (v5.4.6) no
+          # longer resolves and fails installation with HTTP 404.
+          k3d-version: v5.7.4
           args: >-
             --agents 1
             --wait
