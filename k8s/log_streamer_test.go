@@ -2,7 +2,117 @@ package k8s
 
 import (
 	"testing"
+
+	corev1 "k8s.io/api/core/v1"
 )
+
+func makePod(name string, initContainers, containers []string) corev1.Pod {
+	pod := corev1.Pod{}
+	pod.Name = name
+	for _, c := range initContainers {
+		pod.Spec.InitContainers = append(pod.Spec.InitContainers, corev1.Container{Name: c})
+	}
+	for _, c := range containers {
+		pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{Name: c})
+	}
+	return pod
+}
+
+func TestEnumerateContainers_InitAndRegularAcrossPods(t *testing.T) {
+	pods := []corev1.Pod{
+		makePod("pod-a", []string{"init-a"}, []string{"app", "sidecar"}),
+		makePod("pod-b", nil, []string{"app"}),
+	}
+	got := enumerateContainers(pods)
+
+	want := []string{"pod-a/init-a", "pod-a/app", "pod-a/sidecar", "pod-b/app"}
+	if len(got) != len(want) {
+		t.Fatalf("enumerateContainers returned %d entries, want %d: %v", len(got), len(want), got)
+	}
+	for i, w := range want {
+		if got[i].key() != w {
+			t.Errorf("entry %d = %q, want %q", i, got[i].key(), w)
+		}
+	}
+}
+
+func TestPodNamesOf(t *testing.T) {
+	pods := []corev1.Pod{
+		makePod("pod-a", nil, []string{"app"}),
+		makePod("pod-b", nil, []string{"app"}),
+	}
+	got := podNamesOf(pods)
+	if len(got) != 2 || got[0] != "pod-a" || got[1] != "pod-b" {
+		t.Errorf("podNamesOf = %v, want [pod-a pod-b]", got)
+	}
+}
+
+// claimNewStreams must not re-claim a pod/container that is already being
+// streamed (so the poller doesn't double-stream existing replicas) while
+// claiming the containers of newly-appeared pods — the core of #4.
+func TestClaimNewStreams_Dedup(t *testing.T) {
+	s := &LogStreamer{streaming: map[string]bool{}}
+
+	// Pretend pod-a/app is already streaming; the poller must not re-claim it.
+	s.streaming["pod-a/app"] = true
+
+	pods := []corev1.Pod{
+		makePod("pod-a", nil, []string{"app"}),      // already streaming
+		makePod("pod-b", nil, []string{"app", "x"}), // new replica
+	}
+	fresh := s.claimNewStreams(enumerateContainers(pods))
+
+	wantFresh := []string{"pod-b/app", "pod-b/x"}
+	if len(fresh) != len(wantFresh) {
+		t.Fatalf("claimNewStreams returned %d entries, want %d: %v", len(fresh), len(wantFresh), fresh)
+	}
+	for i, w := range wantFresh {
+		if fresh[i].key() != w {
+			t.Errorf("fresh[%d] = %q, want %q", i, fresh[i].key(), w)
+		}
+	}
+
+	// All three containers should now be marked streaming.
+	for _, key := range []string{"pod-a/app", "pod-b/app", "pod-b/x"} {
+		if !s.streaming[key] {
+			t.Errorf("expected %q to be marked streaming", key)
+		}
+	}
+
+	// A second poll with the same pods must claim nothing new.
+	if again := s.claimNewStreams(enumerateContainers(pods)); len(again) != 0 {
+		t.Errorf("second claim should be empty, got %v", again)
+	}
+}
+
+// SetOnPodsChanged should be invoked with the full current pod set so the event
+// watcher's targets stay in sync after rollouts/scaling (#4).
+func TestSpawnStreamsForPods_ReportsCurrentPods(t *testing.T) {
+	s := &LogStreamer{streaming: map[string]bool{}}
+
+	// Pre-seed all containers so spawnStreamsForPods launches no real goroutines
+	// (a nil clientset stream would panic); we only assert the callback here.
+	s.streaming["pod-a/app"] = true
+	s.streaming["pod-b/app"] = true
+
+	var reported [][]string
+	s.SetOnPodsChanged(func(pods []string) {
+		reported = append(reported, append([]string(nil), pods...))
+	})
+
+	pods := []corev1.Pod{
+		makePod("pod-a", nil, []string{"app"}),
+		makePod("pod-b", nil, []string{"app"}),
+	}
+	s.spawnStreamsForPods(pods)
+
+	if len(reported) != 1 {
+		t.Fatalf("onPodsChanged called %d times, want 1", len(reported))
+	}
+	if len(reported[0]) != 2 || reported[0][0] != "pod-a" || reported[0][1] != "pod-b" {
+		t.Errorf("onPodsChanged got %v, want [pod-a pod-b]", reported[0])
+	}
+}
 
 func TestExtractJSONFields_BasicTypes(t *testing.T) {
 	fields := extractJSONFields(`{"level":"error","request_id":"abc-123","retries":3,"ok":true}`)

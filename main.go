@@ -162,6 +162,14 @@ func main() {
 		watcher.UpdateTargets(targetPods)
 	}
 
+	// In deployment mode, keep the event watcher's target pod set in sync as the
+	// streamer re-discovers pods (scale-ups, rolling updates).
+	if *deploymentFlag != "" {
+		streamer.SetOnPodsChanged(func(pods []string) {
+			watcher.UpdateTargets(pods)
+		})
+	}
+
 	err = watcher.Start(bgCtx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Failed to start event watcher: %v\n", err)

@@ -27,6 +27,11 @@ type LogLine struct {
 	Fields    map[string]string // populated for JSON log lines; nil otherwise
 }
 
+// podPollInterval controls how often deployment (selector) mode re-discovers
+// pods so that replicas created after startup (scale-ups, rolling updates) are
+// picked up.
+const podPollInterval = 5 * time.Second
+
 // LogStreamer handles concurrent log streaming from K8s pods
 type LogStreamer struct {
 	clientset *kubernetes.Clientset
@@ -38,6 +43,16 @@ type LogStreamer struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
+
+	// streaming tracks the pod/container pairs that already have an active
+	// streaming goroutine, so the poller doesn't double-stream them.
+	streamingMu sync.Mutex
+	streaming   map[string]bool
+
+	// onPodsChanged, if set, is invoked with the current set of pod names each
+	// time the pod set is (re)discovered in selector mode. Used to keep the
+	// event watcher's target set in sync with rolling updates / scaling.
+	onPodsChanged func([]string)
 }
 
 // NewLogStreamer creates a new streamer for a specific pod or label selector
@@ -49,14 +64,19 @@ func NewLogStreamer(clientset *kubernetes.Clientset, namespace string, podName s
 		selector:  selector,
 		tailLines: tailLines,
 		outChan:   make(chan LogLine, 1000),
+		streaming: make(map[string]bool),
 	}
+}
+
+// SetOnPodsChanged registers a callback that receives the current set of pod
+// names whenever the streamer (re)discovers pods in selector mode.
+func (s *LogStreamer) SetOnPodsChanged(fn func([]string)) {
+	s.onPodsChanged = fn
 }
 
 // Start starts streaming logs concurrently
 func (s *LogStreamer) Start(parentCtx context.Context) (<-chan LogLine, error) {
 	s.ctx, s.cancel = context.WithCancel(parentCtx)
-
-	var podsToStream []corev1.Pod
 
 	if s.podName != "" {
 		// Single pod streaming
@@ -64,7 +84,7 @@ func (s *LogStreamer) Start(parentCtx context.Context) (<-chan LogLine, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get pod %s: %w", s.podName, err)
 		}
-		podsToStream = append(podsToStream, *pod)
+		s.spawnStreamsForPods([]corev1.Pod{*pod})
 	} else if s.selector != "" {
 		// Multi-pod streaming via selector
 		podList, err := s.clientset.CoreV1().Pods(s.namespace).List(s.ctx, metav1.ListOptions{
@@ -73,42 +93,30 @@ func (s *LogStreamer) Start(parentCtx context.Context) (<-chan LogLine, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to list pods with selector %s: %w", s.selector, err)
 		}
-		podsToStream = podList.Items
+
+		if len(podList.Items) == 0 {
+			// No pods yet — inform the user but keep polling so pods created
+			// later (scale-up, first rollout) still get picked up.
+			select {
+			case s.outChan <- LogLine{
+				Timestamp: time.Now(),
+				Content:   "No matching pods found yet. Watching for new pods...",
+				IsEvent:   true,
+				Level:     "WARN",
+			}:
+			case <-s.ctx.Done():
+				return nil, s.ctx.Err()
+			}
+		} else {
+			s.spawnStreamsForPods(podList.Items)
+		}
+
+		// Continuously re-discover pods so that scaling and rolling updates are
+		// picked up (new replicas streamed, event targets refreshed).
+		s.wg.Add(1)
+		go s.watchPodsLoop()
 	} else {
 		return nil, fmt.Errorf("either podName or selector must be provided")
-	}
-
-	if len(podsToStream) == 0 {
-		// Send a dummy event line indicating no pods found
-		select {
-		case s.outChan <- LogLine{
-			Timestamp: time.Now(),
-			Content:   "No matching pods found to stream logs.",
-			IsEvent:   true,
-			Level:     "WARN",
-		}:
-		case <-s.ctx.Done():
-			return nil, s.ctx.Err()
-		}
-		return s.outChan, nil
-	}
-
-	// Spawn streams for each container in each pod
-	for _, pod := range podsToStream {
-		podCopy := pod
-		// Find all containers, including init containers
-		var containers []string
-		for _, c := range podCopy.Spec.InitContainers {
-			containers = append(containers, c.Name)
-		}
-		for _, c := range podCopy.Spec.Containers {
-			containers = append(containers, c.Name)
-		}
-
-		for _, containerName := range containers {
-			s.wg.Add(1)
-			go s.streamContainerLogs(podCopy.Name, containerName)
-		}
 	}
 
 	// Monitor waitgroup to close channel when all streams finish
@@ -118,6 +126,97 @@ func (s *LogStreamer) Start(parentCtx context.Context) (<-chan LogLine, error) {
 	}()
 
 	return s.outChan, nil
+}
+
+// podContainer identifies a single streamable container within a pod.
+type podContainer struct {
+	pod       string
+	container string
+}
+
+func (pc podContainer) key() string { return pc.pod + "/" + pc.container }
+
+// enumerateContainers returns every streamable container (init + regular)
+// across the given pods, preserving pod and within-pod ordering.
+func enumerateContainers(pods []corev1.Pod) []podContainer {
+	var out []podContainer
+	for _, pod := range pods {
+		for _, c := range pod.Spec.InitContainers {
+			out = append(out, podContainer{pod: pod.Name, container: c.Name})
+		}
+		for _, c := range pod.Spec.Containers {
+			out = append(out, podContainer{pod: pod.Name, container: c.Name})
+		}
+	}
+	return out
+}
+
+// podNamesOf returns the names of the given pods.
+func podNamesOf(pods []corev1.Pod) []string {
+	names := make([]string, 0, len(pods))
+	for _, pod := range pods {
+		names = append(names, pod.Name)
+	}
+	return names
+}
+
+// claimNewStreams marks the given containers as streaming and returns only
+// those that were not already being streamed (i.e. need a fresh goroutine).
+// The check-and-set is atomic per container so concurrent callers and the
+// stream-exit cleanup never double-stream or miss a container.
+func (s *LogStreamer) claimNewStreams(pcs []podContainer) []podContainer {
+	var fresh []podContainer
+	for _, pc := range pcs {
+		s.streamingMu.Lock()
+		if s.streaming[pc.key()] {
+			s.streamingMu.Unlock()
+			continue
+		}
+		s.streaming[pc.key()] = true
+		s.streamingMu.Unlock()
+		fresh = append(fresh, pc)
+	}
+	return fresh
+}
+
+// spawnStreamsForPods starts a streaming goroutine for every container in the
+// given pods that is not already being streamed. It also notifies any
+// registered onPodsChanged callback with the current pod set. Safe for
+// concurrent use (invoked from both Start and the poller).
+func (s *LogStreamer) spawnStreamsForPods(pods []corev1.Pod) {
+	for _, pc := range s.claimNewStreams(enumerateContainers(pods)) {
+		s.wg.Add(1)
+		go s.streamContainerLogs(pc.pod, pc.container)
+	}
+
+	if s.onPodsChanged != nil {
+		s.onPodsChanged(podNamesOf(pods))
+	}
+}
+
+// watchPodsLoop periodically re-lists pods matching the selector and starts
+// streaming any newly-appeared replicas. Runs until the context is cancelled.
+func (s *LogStreamer) watchPodsLoop() {
+	defer s.wg.Done()
+
+	ticker := time.NewTicker(podPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			podList, err := s.clientset.CoreV1().Pods(s.namespace).List(s.ctx, metav1.ListOptions{
+				LabelSelector: s.selector,
+			})
+			if err != nil {
+				// Transient listing error; try again on the next tick.
+				continue
+			}
+			s.spawnStreamsForPods(podList.Items)
+		}
+	}
 }
 
 // Stop terminates all active log streams
@@ -130,6 +229,14 @@ func (s *LogStreamer) Stop() {
 // streamContainerLogs tails logs for a specific pod/container
 func (s *LogStreamer) streamContainerLogs(podName, containerName string) {
 	defer s.wg.Done()
+	// Release the streaming slot on exit so a pod that reappears with the same
+	// name can be re-streamed by the poller.
+	defer func() {
+		key := podName + "/" + containerName
+		s.streamingMu.Lock()
+		delete(s.streaming, key)
+		s.streamingMu.Unlock()
+	}()
 
 	tail := s.tailLines
 	opts := &corev1.PodLogOptions{
