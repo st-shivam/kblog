@@ -81,8 +81,8 @@ See [Installation](https://github.com/st-shivam/kblog/blob/main/docs/installatio
 | `w` | Toggle line wrap |
 | `s` | Toggle sort order |
 | `t` | Cycle themes |
-| `l` | Toggle container sidebar |
-| `Tab` | Switch focus between log view and sidebar (only when the sidebar is open) |
+| `l` | Toggle container filter sidebar (focus lands there immediately) |
+| `Tab` | Switch focus between log view and sidebar _(sidebar must be open)_ |
 
 ---
 

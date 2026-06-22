@@ -135,6 +135,6 @@ The inspector works on mixed log streams — plain-text lines pass through norma
 
 ## Container sidebar
 
-Press `l` to open the sidebar. It lists every streaming source — container name or pod replica. Press `Space` to toggle individual sources on or off without stopping the stream.
+Press `l` to open the **Filter Containers** sidebar. Focus lands there immediately — use `↑`/`↓` to navigate the list and `Space` to toggle individual containers on or off without stopping the stream. Press `Tab` to switch focus back to the log view while keeping the sidebar visible, or press `l` again to close it.
 
-All sources are enabled by default.
+All containers are enabled by default.
