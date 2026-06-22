@@ -105,7 +105,7 @@ func (s *Sidebar) Render(width int, height int) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(SidebarTitle.Render("Containers"))
+	sb.WriteString(SidebarTitle.Render("Filter Containers"))
 	sb.WriteString("\n\n")
 
 	if len(s.Items) == 0 {

@@ -262,6 +262,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.showSidebar {
 				m.sidebar.Focused = true
 				m.viewport.Focused = false
+				m.statusMsg = "Container filter: ↑↓ navigate • space toggle • tab switch to logs"
+				m.statusTime = time.Now()
 			} else {
 				m.sidebar.Focused = false
 				m.viewport.Focused = true
