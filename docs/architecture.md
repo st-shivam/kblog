@@ -60,42 +60,23 @@ plugin/plugins.yaml      k9s plugin definition (Shift-L → kblog)
 ## Channel pipeline
 
 ```
-LogStreamer → logChan → pipe goroutine → sharedLogChan ← EventWatcher
-                                                |
-                                         TUI waitForLogs()
+LogStreamer ──┐
+              ├──► sharedLogChan ──► TUI waitForLogs()
+EventWatcher ─┘
 ```
 
-`waitForLogs` returns a `tea.Cmd` that reads one `LogLine` from `sharedLogChan`, delivering it to the Bubbletea Elm loop. This keeps K8s I/O off the render goroutine.
+Both producers write directly to `sharedLogChan`. `waitForLogs` returns a `tea.Cmd` that reads one `LogLine` from `sharedLogChan`, delivering it to the Bubbletea Elm loop. This keeps K8s I/O off the render goroutine.
 
 ---
 
 ## Coordinated shutdown
 
-When the user exits, the root context (`bgCtx`) is cancelled. A `sync.WaitGroup` ensures `sharedLogChan` is closed only after both the log pipe goroutine and the event watcher have fully exited:
+When the user exits, the root context (`bgCtx`) is cancelled. A single goroutine sequences the teardown: it waits for the streamer to finish, stops the watcher, then closes `sharedLogChan`:
 
 ```go
-var mergeWg sync.WaitGroup
-mergeWg.Add(2)
-
-go func() {          // log pipe
-    defer mergeWg.Done()
-    for line := range logChan {
-        select {
-        case sharedLogChan <- line:
-        case <-bgCtx.Done():
-            return
-        }
-    }
-}()
-
-go func() {          // event watcher stop tracker
-    defer mergeWg.Done()
-    <-bgCtx.Done()
-    watcher.Stop()
-}()
-
-go func() {          // final closer
-    mergeWg.Wait()
+go func() {
+    <-streamer.Done()
+    watcher.Stop() // blocks until watcher goroutine exits
     close(sharedLogChan)
 }()
 ```

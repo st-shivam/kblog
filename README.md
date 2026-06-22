@@ -20,7 +20,7 @@ Works as both a **standalone CLI tool** and a **drop-in k9s plugin** (press `Shi
 - **Live K8s event injection** — `OOMKilled`, `CrashLoopBackOff`, liveness probe failures injected directly into the log timeline.
 - **Interactive JSON inspector** — press `Enter` on any JSON log line for a syntax-highlighted key-value overlay.
 - **Live search** — plain text, regex, or `key=value` field filters (e.g. `level=error request_id=abc`).
-- **5 color themes** — Midnight, Dracula, Catppuccin Macchiato, Nord, Monokai. Cycle with `t`.
+- **6 color themes** — Terminal (default), Midnight, Dracula, Catppuccin Macchiato, Nord, Monokai. Cycle with `t`.
 - **Clipboard copy** — single line or multiline visual selection (`c`/`y`).
 - **50k-line rolling buffer** with O(1) incremental filter path.
 
