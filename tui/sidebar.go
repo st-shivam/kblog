@@ -19,10 +19,7 @@ type Sidebar struct {
 // NewSidebar initializes a sidebar component
 func NewSidebar() *Sidebar {
 	return &Sidebar{
-		Items:    []string{},
 		Selected: make(map[string]bool),
-		Cursor:   0,
-		Focused:  false,
 		Height:   10,
 	}
 }

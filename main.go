@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"kblog/k8s"
 	"kblog/tui"
@@ -58,7 +57,7 @@ func main() {
 	}
 
 	// Suppress status lines when running interactively (TUI handles visuals)
-	isTTY := isTerminal(os.Stdout)
+	isTTY := term.IsTerminal(int(os.Stdout.Fd()))
 
 	// Load Kubernetes API Client
 	if !isTTY {
@@ -117,43 +116,23 @@ func main() {
 	bgCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Initialize log streamer
+	sharedLogChan := make(chan k8s.LogLine, 2000)
+
+	// Initialize log streamer — writes directly to sharedLogChan
 	var streamer *k8s.LogStreamer
 	if *podFlag != "" {
-		streamer = k8s.NewLogStreamer(clientset, ns, *podFlag, "", *tailFlag)
+		streamer = k8s.NewLogStreamer(clientset, ns, *podFlag, "", *tailFlag, sharedLogChan)
 		targetPods = []string{*podFlag}
 	} else {
-		streamer = k8s.NewLogStreamer(clientset, ns, "", selectorStr, *tailFlag)
+		streamer = k8s.NewLogStreamer(clientset, ns, "", selectorStr, *tailFlag, sharedLogChan)
 	}
 
-	// Start log streaming
-	logChan, err := streamer.Start(bgCtx)
-	if err != nil {
+	if err := streamer.Start(bgCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Failed to start log streamer: %v\n", err)
 		os.Exit(1)
 	}
 
-	var mergeWg sync.WaitGroup
-	mergeWg.Add(2)
-
-	// Cast the read-only logChan to a write channel so that event watcher can write to it
-	// In Go, since streamer.Start returned <-chan LogLine, we can construct a unified channel
-	// to merge logs and events in the core model.
-	sharedLogChan := make(chan k8s.LogLine, 2000)
-
-	// Pipe incoming logs to shared channel
-	go func() {
-		defer mergeWg.Done()
-		for line := range logChan {
-			select {
-			case sharedLogChan <- line:
-			case <-bgCtx.Done():
-				return
-			}
-		}
-	}()
-
-	// Initialize K8s event watcher (piping events into the same shared channel)
+	// Initialize K8s event watcher — also writes directly to sharedLogChan
 	var watcher *k8s.EventWatcher
 	if *podFlag != "" {
 		watcher = k8s.NewEventWatcher(clientset, ns, *podFlag, sharedLogChan)
@@ -170,22 +149,15 @@ func main() {
 		})
 	}
 
-	err = watcher.Start(bgCtx)
-	if err != nil {
+	if err := watcher.Start(bgCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Failed to start event watcher: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Watcher shutdown coordinator
+	// Close sharedLogChan once both producers have stopped writing.
 	go func() {
-		defer mergeWg.Done()
-		<-bgCtx.Done()
-		watcher.Stop()
-	}()
-
-	// Channel closer coordinator
-	go func() {
-		mergeWg.Wait()
+		<-streamer.Done()
+		watcher.Stop() // waits for watcher goroutine to exit before we close
 		close(sharedLogChan)
 	}()
 
@@ -202,8 +174,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error running kblog TUI: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-func isTerminal(f *os.File) bool {
-	return term.IsTerminal(int(f.Fd()))
 }

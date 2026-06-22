@@ -51,7 +51,6 @@ type Viewport struct {
 	colorScheme []lipgloss.Color
 
 	// Parsed filter state (rebuilt by UpdateFilters / parseSearchQuery)
-	searchRegex  *regexp.Regexp
 	fieldFilters []fieldFilter
 	textRegex    *regexp.Regexp
 }
@@ -71,17 +70,12 @@ func NewViewport() *Viewport {
 	}
 
 	return &Viewport{
-		AllLines:      make([]k8s.LogLine, 0, 50000),
-		FilteredLines: []k8s.LogLine{},
-		ScrollY:       0,
-		CursorY:       0,
-		AutoScroll:    true,
-		SearchQuery:   "",
-		FilterLevel:   "ALL",
-		Focused:       true,
-		podColors:     make(map[string]lipgloss.Color),
-		colorIndex:    0,
-		colorScheme:   colorScheme,
+		AllLines:    make([]k8s.LogLine, 0, 50000),
+		AutoScroll:  true,
+		FilterLevel: "ALL",
+		Focused:     true,
+		podColors:   make(map[string]lipgloss.Color),
+		colorScheme: colorScheme,
 	}
 }
 
@@ -202,8 +196,6 @@ func parseSearchQuery(query string) ([]fieldFilter, *regexp.Regexp) {
 // UpdateFilters re-applies all active filters and sort order to the full AllLines buffer
 func (v *Viewport) UpdateFilters(selectedContainers map[string]bool) {
 	v.fieldFilters, v.textRegex = parseSearchQuery(v.SearchQuery)
-	// Keep searchRegex pointing to textRegex for formatLogLine highlighting
-	v.searchRegex = v.textRegex
 
 	var filtered []k8s.LogLine
 	for _, line := range v.AllLines {
@@ -531,7 +523,7 @@ func (v *Viewport) formatLogLine(line k8s.LogLine, maxLen int, isSelected bool, 
 		chunks := wrapString(rawContent, contentWidth)
 		var sb strings.Builder
 		for i, chunk := range chunks {
-			highlighted := applyHighlight(chunk, v.searchRegex)
+			highlighted := applyHighlight(chunk, v.textRegex)
 			if i == 0 {
 				lineText := prefix + highlighted
 				sb.WriteString(v.applyLineStyle(lineText, maxLen, isSelected, inSelection))
@@ -544,8 +536,8 @@ func (v *Viewport) formatLogLine(line k8s.LogLine, maxLen int, isSelected bool, 
 	}
 
 	// Non-wrap path: apply highlighting to the display content
-	if v.searchRegex != nil {
-		displayContent = applyHighlight(displayContent, v.searchRegex)
+	if v.textRegex != nil {
+		displayContent = applyHighlight(displayContent, v.textRegex)
 	}
 
 	lineText := prefix + displayContent

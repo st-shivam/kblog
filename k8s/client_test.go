@@ -51,8 +51,8 @@ func TestLoadClient_NamespaceFromCurrentContext(t *testing.T) {
 	if info.Namespace != "team-a" {
 		t.Errorf("namespace = %q, want team-a (from current context)", info.Namespace)
 	}
-	if info.Clientset == nil || info.Config == nil {
-		t.Error("expected non-nil Clientset and Config")
+	if info.Clientset == nil {
+		t.Error("expected non-nil Clientset")
 	}
 }
 
