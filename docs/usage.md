@@ -24,7 +24,7 @@ kblog --deployment <name> [flags]
 | `--namespace` | Kubernetes namespace | current context / `default` |
 | `--context` | Kubeconfig context | current context |
 | `--tail` | Number of initial log lines | `200` |
-| `--theme` | Starting color theme | `midnight` |
+| `--theme` | Starting color theme | `terminal` |
 | `--version` | Print version and exit | — |
 
 > `--pod` and `--deployment` are mutually exclusive. One must be provided.
@@ -51,7 +51,7 @@ Start with a different theme:
 kblog --pod payment-gateway --namespace billing --theme nord
 ```
 
-Available themes: `midnight` · `dracula` · `catppuccin` · `nord` · `monokai`
+Available themes: `terminal` · `midnight` · `dracula` · `catppuccin` · `nord` · `monokai`
 
 ---
 
