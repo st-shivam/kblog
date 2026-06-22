@@ -409,16 +409,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// Shutdown cleans up background watch processes
+// Shutdown cancels the root context, which cascades to all background goroutines.
 func (m *Model) Shutdown() {
 	if m.cancelFn != nil {
 		m.cancelFn()
-	}
-	if m.streamer != nil {
-		m.streamer.Stop()
-	}
-	if m.watcher != nil {
-		m.watcher.Stop()
 	}
 }
 

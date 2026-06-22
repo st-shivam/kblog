@@ -5,14 +5,12 @@ import (
 	"path/filepath"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// ClientInfo bundles the Kubernetes client and configuration
+// ClientInfo bundles the Kubernetes client and resolved namespace
 type ClientInfo struct {
 	Clientset *kubernetes.Clientset
-	Config    *rest.Config
 	Namespace string
 }
 
@@ -68,7 +66,6 @@ func LoadClient(contextName string, namespace string) (*ClientInfo, error) {
 
 	return &ClientInfo{
 		Clientset: clientset,
-		Config:    restConfig,
 		Namespace: namespace,
 	}, nil
 }

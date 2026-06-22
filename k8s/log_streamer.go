@@ -55,6 +55,7 @@ type LogStreamer struct {
 	selector  string // Label selector for multi-pod tailing
 	tailLines int64
 	outChan   chan LogLine
+	done      chan struct{}
 	ctx       context.Context
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
@@ -70,18 +71,22 @@ type LogStreamer struct {
 	onPodsChanged func([]string)
 }
 
-// NewLogStreamer creates a new streamer for a specific pod or label selector
-func NewLogStreamer(clientset *kubernetes.Clientset, namespace string, podName string, selector string, tailLines int64) *LogStreamer {
+// NewLogStreamer creates a new streamer for a specific pod or label selector.
+// out is the destination channel; the caller owns it and must not close it before Done() fires.
+func NewLogStreamer(clientset *kubernetes.Clientset, namespace string, podName string, selector string, tailLines int64, out chan LogLine) *LogStreamer {
 	return &LogStreamer{
 		clientset: clientset,
 		namespace: namespace,
 		podName:   podName,
 		selector:  selector,
 		tailLines: tailLines,
-		outChan:   make(chan LogLine, 1000),
+		outChan:   out,
 		streaming: make(map[string]bool),
 	}
 }
+
+// Done returns a channel that is closed when all streaming goroutines have exited.
+func (s *LogStreamer) Done() <-chan struct{} { return s.done }
 
 // SetOnPodsChanged registers a callback that receives the current set of pod
 // names whenever the streamer (re)discovers pods in selector mode.
@@ -89,29 +94,28 @@ func (s *LogStreamer) SetOnPodsChanged(fn func([]string)) {
 	s.onPodsChanged = fn
 }
 
-// Start starts streaming logs concurrently
-func (s *LogStreamer) Start(parentCtx context.Context) (<-chan LogLine, error) {
+// Start starts streaming logs concurrently. Logs are written to the channel passed to NewLogStreamer.
+// Done() is closed when all streaming goroutines exit.
+func (s *LogStreamer) Start(parentCtx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(parentCtx)
+	s.done = make(chan struct{})
 
 	if s.podName != "" {
-		// Single pod streaming
 		pod, err := s.clientset.CoreV1().Pods(s.namespace).Get(s.ctx, s.podName, metav1.GetOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to get pod %s: %w", s.podName, err)
+			return fmt.Errorf("failed to get pod %s: %w", s.podName, err)
 		}
 		s.spawnStreamsForPods([]corev1.Pod{*pod})
 	} else if s.selector != "" {
-		// Multi-pod streaming via selector
 		podList, err := s.clientset.CoreV1().Pods(s.namespace).List(s.ctx, metav1.ListOptions{
 			LabelSelector: s.selector,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to list pods with selector %s: %w", s.selector, err)
+			return fmt.Errorf("failed to list pods with selector %s: %w", s.selector, err)
 		}
 
 		if len(podList.Items) == 0 {
-			// No pods yet — inform the user but keep polling so pods created
-			// later (scale-up, first rollout) still get picked up.
+			// No pods yet — keep polling so pods created later still get picked up.
 			select {
 			case s.outChan <- LogLine{
 				Timestamp: time.Now(),
@@ -120,27 +124,24 @@ func (s *LogStreamer) Start(parentCtx context.Context) (<-chan LogLine, error) {
 				Level:     "WARN",
 			}:
 			case <-s.ctx.Done():
-				return nil, s.ctx.Err()
+				return s.ctx.Err()
 			}
 		} else {
 			s.spawnStreamsForPods(podList.Items)
 		}
 
-		// Continuously re-discover pods so that scaling and rolling updates are
-		// picked up (new replicas streamed, event targets refreshed).
 		s.wg.Add(1)
 		go s.watchPodsLoop()
 	} else {
-		return nil, fmt.Errorf("either podName or selector must be provided")
+		return fmt.Errorf("either podName or selector must be provided")
 	}
 
-	// Monitor waitgroup to close channel when all streams finish
 	go func() {
 		s.wg.Wait()
-		close(s.outChan)
+		close(s.done)
 	}()
 
-	return s.outChan, nil
+	return nil
 }
 
 // podContainer identifies a single streamable container within a pod.

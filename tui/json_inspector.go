@@ -22,10 +22,7 @@ type JSONInspector struct {
 
 // NewJSONInspector initializes an empty inspector
 func NewJSONInspector() *JSONInspector {
-	return &JSONInspector{
-		ScrollY: 0,
-		Height:  12,
-	}
+	return &JSONInspector{Height: 12}
 }
 
 // SetContent updates content, checking if it is JSON
